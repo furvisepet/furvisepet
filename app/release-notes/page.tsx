@@ -11,7 +11,7 @@ const release = getV1ReleaseForPage({ preview });
 
 export const metadata = {
   ...createPublicPageMetadata({
-    title: release ? `Furvise V1 release notes${release.status === "draft" ? " — draft" : ""}` : "Release notes",
+    title: release ? `Furvise V1 release notes${release.status === "draft" ? " (draft)" : ""}` : "Release notes",
     description: release ? `${release.status === "draft" ? "Unpublished draft. " : ""}${release.summary}` : "Product updates for Furvise. Release notes are published when a release is ready.",
     path: "/release-notes",
   }),
@@ -25,14 +25,14 @@ export default function ReleaseNotesPage() {
       <main className="release-main">
         <div className="release-heading">
           <PageHeader
-            eyebrow={release?.status === "draft" ? "Release notes · V1 draft — not released" : "Release notes"}
+            eyebrow={release?.status === "draft" ? "Release notes · V1 draft: not released" : "Release notes"}
             title={release ? "Furvise V1" : "Release notes"}
             supportingText={release ? release.summary : "Product updates, when they are ready to share."}
           />
         </div>
         <div className="release-layout">
           <aside className="release-index">
-            {release ? <a className="release-date-link" href={`#${release.id}`}>{release.status === "draft" ? "V1 draft — not released" : "Furvise V1"}</a> : null}
+            {release ? <a className="release-date-link" href={`#${release.id}`}>{release.status === "draft" ? "V1 draft: not released" : "Furvise V1"}</a> : null}
             <Link href="/contact">Report a problem ↗</Link>
           </aside>
           <div>

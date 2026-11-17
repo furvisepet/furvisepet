@@ -1,4 +1,4 @@
-import { recursiveFixturePlan } from "./recursive-wire-fixture.mjs";
+import { providerFixturePlan } from "./provider-wire-fixture.mjs";
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {admitAiOperation} from '../../app/lib/ai/usage-guard/admission.ts';
@@ -29,7 +29,7 @@ export async function stagedOperation({context,purpose,request,db,initial=()=>{}
  let calls=0,hydrated;
  try{return await admission.run(async()=>{
   const prepared=prepareAskInterpretationRequest(context,'gpt-5.4-mini');
-  const encoded=recursiveFixturePlan(prepared.wire).encode({request:intent});
+  const encoded=providerFixturePlan(prepared).encode({request:intent});
   const result=await interpretAskQuestion({context,model:'gpt-5.4-mini',catalogService:{requestId:'fixture-'+purpose,capability:()=>({available:true}),
    hydrate:async permit=>{hydrated=await hydratePlanningCatalog(permit,prepared.context,db);return hydrated;},verify:permit=>verifyPlanningCatalogSource(permit,db)},
    client:{responses:{create:async wire=>{

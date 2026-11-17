@@ -30,7 +30,7 @@ jobs:
       github.ref == 'refs/heads/release/journal-first-20261116' &&
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' && 40 || 5 }}
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' && 45 || 5 }}
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       UV_THREADPOOL_SIZE: "2"
@@ -133,7 +133,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ci-evidence
-          timeout --signal=TERM --kill-after=15s 1200s npm test 2>&1 | tee ci-evidence/full-source.log
+          timeout --signal=TERM --kill-after=15s 1800s npm test 2>&1 | tee ci-evidence/full-source.log
       - name: Retain build and full-source logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

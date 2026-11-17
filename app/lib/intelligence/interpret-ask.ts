@@ -236,7 +236,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     // Retain the existing direct Node fixture compatibility. Real provider
     // responses must satisfy the wire schema and restore before Binder.
     if (process.env.NODE_TEST_CONTEXT && value && typeof value === "object"
-      && !Object.hasOwn(value, "nodes") && !Object.hasOwn(value, "root") && (Object.hasOwn(value, "request") || Object.hasOwn(value, "version")))
+      && !Object.hasOwn(value, "format") && !Object.hasOwn(value, "nodes") && !Object.hasOwn(value, "root") && (Object.hasOwn(value, "request") || Object.hasOwn(value, "version")))
       return parseProviderAskRequest(raw);
     return transport.decode(value, checkRuntime).request;
   };

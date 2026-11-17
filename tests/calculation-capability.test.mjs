@@ -4,9 +4,9 @@ globalThis.__publicCapabilityMuscleCall=()=>{muscleCalls++;};
 registerHooks({load(url,context,next){
  const loaded=next(url,context);
  if(!url.endsWith('/app/lib/furvise-brain/muscle.ts'))return loaded;
- const source=String(loaded.source),needle=' const results:CalculationResult[]=[];';
- if(source.split(needle).length!==2)throw Error('MUSCLE_OBSERVER_TEST_SEAM_CHANGED');
- return {...loaded,source:source.replace(needle,' globalThis.__publicCapabilityMuscleCall();'+needle)};
+ const source=String(loaded.source),needle=/const results(?::CalculationResult\[\])?\s*=\s*\[\];/g;
+ if([...source.matchAll(needle)].length!==1)throw Error('MUSCLE_OBSERVER_TEST_SEAM_CHANGED');
+ return {...loaded,source:source.replace(needle,match=>'globalThis.__publicCapabilityMuscleCall();'+match)};
 }});
 const {assert,test,fixture,finish,calculation,slot,rawTicket,pets,bindCalculatePlan,bindTypedReadTicket,buildCalculationLabs,calculationPublicationFailure}=await import('./helpers/calculation-public-fixture.mjs');
 const {calculationCapability,PUBLIC_V1_SUPPORTED_CALCULATION_OPERATORS:yes,PUBLIC_V1_UNSUPPORTED_CALCULATION_OPERATORS:no,CALCULATION_CAPABILITY_LIMITATION}=await import('../app/lib/intelligence/calculation-capability.ts');

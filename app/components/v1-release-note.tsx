@@ -5,7 +5,7 @@ export function V1ReleaseNote({ release }: { release: ReleaseNote }) {
   return (
     <article className="release-entry" id={release.id}>
       <div className="release-dateline">
-        <span>{draft ? "Draft — not released" : release.version}</span>
+        <span>{draft ? "Draft: not released" : release.version}</span>
         {!draft && release.publishedAt ? <time dateTime={release.publishedAt}>{release.publishedAt}</time> : null}
       </div>
       <h2 className="app-section-title">{release.title}</h2>

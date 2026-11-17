@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 import { prepareAskInterpretationRequest, interpretAskQuestion, recoverAskInterpretation } from "../app/lib/intelligence/interpret-ask.ts";
 import { createAskProviderWireSchema } from "../app/lib/intelligence/ask-wire-provider-schema.ts";
 import { createRecursiveAskPlanHarness } from "./helpers/ask-wire-recursive-plan.mjs";
+import { createDirectSemanticAskWirePlan } from "../app/lib/intelligence/ask-wire-direct.mjs";
+import { askRequestSchema } from "../app/lib/intelligence/ask-request-contract.ts";
+import { proposedSemanticFrameJsonSchema } from "../app/lib/intelligence/semantic-frame/schema.ts";
 import { admitAiOperation } from "../app/lib/ai/usage-guard/admission.ts";
 import { MemoryAiGuardTestStore } from "../app/lib/ai/usage-guard/memory-test-store.ts";
 import { OperationDeadline } from "../app/lib/ai/execution-deadline.ts";
@@ -38,11 +41,13 @@ function invoke(context, create, extras = {}) {
   return interpretAskQuestion({ context, model: "gpt-5.4-mini", client: { responses: { create } }, ...extras });
 }
 
-test("actual prepare/parse uses the reviewed recursive transport and retains the original canonical plan", async t => admitted(t, "recursive-success", async a => {
-  const reference = createRecursiveAskPlanHarness(prepared.wire, () => {});
+test("actual prepare/parse uses direct slots and retains both canonical and recursive round trips", async t => admitted(t, "recursive-success", async a => {
+  const recursive = createRecursiveAskPlanHarness(prepared.wire, () => {});
+  assert.deepEqual(recursive.decode(recursive.encode({request:good},()=>{}),()=>{}), prepared.wire.decode(prepared.wire.encode({request:good})));
+  const reference = createDirectSemanticAskWirePlan(prepared.wire, prepared.wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema,prepared.context),()=>{});
   assert.deepEqual(prepared.transport.schema, reference.schema); assert.equal(prepared.transport.instructions, reference.instructions);
   assert.deepEqual(prepared.request.text.format.schema, createAskProviderWireSchema(reference.schema));
-  assert.deepEqual(prepared.request.text.format.schema.required, ["root"]);
+  assert.deepEqual(prepared.request.text.format.schema.required, ["format","request"]);
   assert.deepEqual(prepared.wire.schema.required, ["nodes", "root"]);
   const expected = recoverAskInterpretation(good, prepared.context), response = envelope(good);
   assert.deepEqual(prepared.transport.decode(response, () => {}), prepared.wire.decode(prepared.wire.encode({ request: good })));
@@ -178,8 +183,11 @@ test("provider errors in initial and repair phases keep safe diagnostics and set
     }, { onProviderEvent: e => events.push(e) }), e => {
       assert.equal(e.diagnostics.providerErrorCode, "ASK_INTERPRETATION_TRANSPORT");
       assert.equal(e.diagnostics.providerStatus, 400); assert.equal(e.diagnostics.timedOut, false);
-      assert.deepEqual(e.diagnostics.providerError, { status: 400, code: "invalid_json_schema",
+      const {schema,...providerError}=e.diagnostics.providerError;
+      assert.deepEqual(providerError, { status: 400, code: "invalid_json_schema",
         type: "invalid_request_error", param: "text.format.schema", requestId: id });
+      assert.match(schema.sha256,/^[a-f0-9]{64}$/);
+      assert.deepEqual({...schema,sha256:"digest"},{sha256:"digest",rule:"unrecognized",path:null});
       assert.ok(!JSON.stringify(e).includes(marker)); assert.ok(!e.message.includes(marker)); return true;
     });
     assert.equal(calls, repair ? 2 : 1); assert.equal(failures, 1); assert.equal(usage, repair ? 1 : 0);

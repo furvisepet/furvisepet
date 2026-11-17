@@ -5,7 +5,8 @@ import { createRequire } from "node:module";
 const yaml = createRequire(import.meta.url)("js-yaml");
 const source = readFileSync(new URL("../.github/workflows/trusted-release-ci.yml", import.meta.url), "utf8");
 const workflow = yaml.load(source);
-const full = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).scripts.test;
+const command = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).scripts.test;
+const full = readFileSync(new URL("../scripts/check-full-release.mjs", import.meta.url), "utf8");
 
 test("hosted release CI stays manual, SHA-pinned and restricted to the reviewed owner", () => {
   assert.deepEqual(Object.keys(workflow.on), ["workflow_dispatch"]);
@@ -17,7 +18,7 @@ test("release checks use hosted Linux without laptop, privileges or deployment",
   assert.equal(Object.keys(workflow.jobs).length, 1);
   const job = workflow.jobs["trusted-release"];
   assert.equal(job["runs-on"], "ubuntu-latest");
-  assert.equal(job["timeout-minutes"], "${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' && 40 || 5 }}");
+  assert.equal(job["timeout-minutes"], "${{ github.event_name == 'workflow_dispatch' && inputs.validation_scope == 'full' && 45 || 5 }}");
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   assert.equal(job.env.OPENAI_API_KEY, "");
@@ -44,14 +45,16 @@ test("targeted scope cannot masquerade as the full release gate", () => {
   for (const step of fullSteps) assert.ok(step.if.includes("inputs.validation_scope == 'full'"), step.name);
 });
 test("full source qualification retains every discovered test with deadlines and offline transport", () => {
+  assert.equal(command,"node scripts/check-full-release.mjs");
+  assert.match(full, /NODE_OPTIONS:/);
   assert.match(full, /offline-network-guard/);
   assert.match(full, /register-release-typescript/);
-  assert.match(full, /--test-concurrency=2/);
+  assert.match(full, /--test-concurrency=4/);
   assert.match(full, /--test-timeout=180000/);
   assert.doesNotMatch(full, /--jitless|test-name-pattern|test-skip-pattern|tests\/[^ ]+\.test/);
   const step = workflow.jobs["trusted-release"].steps.find(s => s.name === "Bounded full source suite without provider access");
   assert.match(step.run, /set -euo pipefail/);
-  assert.match(step.run, /1200s npm test/);
+  assert.match(step.run, /1800s npm test/);
   assert.match(step.run, /tee ci-evidence\/full-source\.log/);
   const artifact = workflow.jobs["trusted-release"].steps.find(s => s.uses?.startsWith("actions/upload-artifact@"));
   assert.equal(artifact.if, "always()");

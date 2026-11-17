@@ -1,4 +1,4 @@
-import { recursiveFixturePlan } from "./recursive-wire-fixture.mjs";
+import { createDirectSemanticAskWirePlan } from "../../app/lib/intelligence/ask-wire-direct.mjs";
 import assert from "node:assert/strict";
 import { createAskWirePlan } from "../../app/lib/intelligence/ask-wire-policy.mjs";
 
@@ -9,7 +9,7 @@ export async function inspectAskWireContract(request, context) {
  const { projectAskInterpretationContext } = await import("../../app/lib/intelligence/interpret-ask.ts");
  const { askSourceWindows, askUserSourceInput, ASK_USER_SOURCE_INSTRUCTIONS } = await import("../../app/lib/intelligence/ask-interpretation-sources.ts");
  const { createAskProviderWireSchema } = await import("../../app/lib/intelligence/ask-wire-provider-schema.ts");
- const { ASK_REQUEST_INSTRUCTIONS, askRequestProviderSchema } = await import("../../app/lib/intelligence/ask-request-contract.ts");
+ const { ASK_REQUEST_INSTRUCTIONS, askRequestSchema, askRequestProviderSchema } = await import("../../app/lib/intelligence/ask-request-contract.ts");
  const { proposedSemanticFrameJsonSchema } = await import("../../app/lib/intelligence/semantic-frame/schema.ts");
  const { factorProviderEnumSchemas } = await import("../../app/lib/ai/provider-enum-schema.ts");
  const { factorProviderCompoundSchemas } = await import("../../app/lib/ai/provider-compound-schema.ts");
@@ -26,7 +26,8 @@ export async function inspectAskWireContract(request, context) {
    if (plans.size >= 16) plans.delete(plans.keys().next().value);
    plans.set(key, createAskWirePlan(providerSchema, ASK_REQUEST_INSTRUCTIONS));
  }
- const plan = recursiveFixturePlan(plans.get(key));
+ const wire = plans.get(key);
+ const plan = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, selected), () => {});
  assert.deepEqual(request.text.format.schema, createAskProviderWireSchema(plan.schema), "actual wire schema differs from the source-window compiler");
  assert.equal(request.instructions, plan.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, "actual policy differs from pinned policy and source adapter");
  return { canonicalSchema, providerSchema, sourceInstructions: ASK_REQUEST_INSTRUCTIONS };
