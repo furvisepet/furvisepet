@@ -6,7 +6,7 @@ import {WORKFLOW_INTENTS} from "./app-capabilities.mjs";
 const object=properties=>({type:"object",additionalProperties:false,properties,required:Object.keys(properties)});
 const choice=values=>({type:"string",enum:values});
 export const EMERGENCY_EVENTS=Object.freeze({
- breathing_distress:"difficulty breathing or open-mouth breathing in a cat",
+ breathing_distress:"difficulty breathing or marked respiratory distress",
  collapse:"collapse, loss of consciousness or inability to respond normally",
  toxin_exposure:"known or suspected exposure to a potentially harmful substance or too much medicine",
  repeated_seizures:"an ongoing or repeated seizure",

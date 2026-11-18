@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  validateClinicalAssessment, decodeClinicalSelection, emergencyHandoffForAssessment,
+  validateClinicalAssessment, decodeClinicalSelection, emergencyHandoffForAssessment, EMERGENCY_EVENTS,
 } from "../app/lib/ask-read-only/clinical-policy.mjs";
 
 // Synthetic, privacy-safe counterpart of the failed November 18 preview prompt.
@@ -83,4 +83,9 @@ test("an unauthorized pet handle is not accepted in the clinical history intent"
     ownerStatementRefs: [{ ref: "owner1", question: true }],
     dialogue: [],
   }), /ASK_READ_CLINICAL_CONTRACT/);
+});
+
+test("clinical breathing event label is species-neutral for an owned dog or cat",()=> {
+ assert.match(EMERGENCY_EVENTS.breathing_distress,/difficulty breathing/);
+ assert.doesNotMatch(EMERGENCY_EVENTS.breathing_distress,/\bin a cat\b|\bin a dog\b/i);
 });
