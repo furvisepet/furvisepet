@@ -54,7 +54,7 @@ function assessmentSchema(ownerStatements){
  return out;
 }
 export const CLINICAL_INSTRUCTIONS=[
- "For each acute event, choose exactly ONE occurrence in eventAssessments: current, conditional, historical or negated. There is no global scenario/urgency classification on this wire. A current mild problem does NOT make the severe IF warning current. Never duplicate an event across meanings. If an event is genuinely happening now as well as discussed for the future, classify that event as current; other future events remain conditional. For current events, select the relevant ownerStatementRef whose exact server-held statement asserts the event is happening or suspected now; a future IF clause or an assistant warning is not such an assertion. Never regenerate evidence quotations. Conditional warnings need no current-event assertion. Review the occurrence independently in the second pass.",
+ "For each distinct temporal mention of an acute event, classify its occurrence in eventAssessments: current, conditional, historical or negated. There is no global scenario/urgency classification on this wire. A current mild problem does NOT make the severe IF warning current. The same event may have separate historical, negated-now and conditional-future mentions; each occurrence may appear at most once and none makes the event CURRENT. Never pair current with another occurrence for the same event. If an event is genuinely happening now as well as discussed for the future, classify that event as current; other future events remain conditional. For current events, select the relevant ownerStatementRef whose exact server-held statement asserts the event is happening or suspected now; a future IF clause or an assistant warning is not such an assertion. Never regenerate evidence quotations. Conditional warnings need no current-event assertion. Review the occurrence independently in the second pass.",
  "Classify the CURRENT question using its actual conversational meaning. Earlier dialogue supplies referents, not an automatic clinical mode. careContext distinguishes education, benign organization, a current patient concern, a clinical historical report and preparation of a vet summary.",
  "A current mild appetite concern can coexist with eventAssessments whose severe events are conditional. Never convert an IF warning or resolved past event into a present emergency. Explicit negation is not evidence the event is occurring. Map paraphrases by meaning, not a symptom keyword match.",
  "occurrence=current identifies a present or reasonably suspected acute event. Do not require certainty, a pet name or saved records before immediate contact for breathing distress, collapse, toxin/overdose exposure, ongoing/repeated seizures, acute bloat/retching, blocked urination, major trauma/bleeding or acute neurologic signs. occurrence=conditional identifies severe warning scenarios you would otherwise mention: if they occur, the server supplies IMMEDIATE emergency contact, never merely same-day care.",
@@ -76,12 +76,14 @@ export function validateClinicalAssessment(value,ownerStatements=[]){
   const seen=new Map();
   for(const observation of value.eventAssessments){
    if(!keys(observation,["event","occurrence","ownerStatementRef"])||!Object.hasOwn(EMERGENCY_EVENTS,observation.event)||!["current","conditional","historical","negated"].includes(observation.occurrence))reject("clinical_events");
-   const previous=seen.get(observation.event);
-   // A recovered past event may also be explicitly negated today. Both are
-   // non-acute. Validate every reference below; never reconcile conflicting
-   // current/conditional meanings or admit an unverified current assertion.
-   if(previous&&![previous,observation.occurrence].every(v=>v==="historical"||v==="negated"))reject("clinical_events");
-   seen.set(observation.event,observation.occurrence);
+   const occurrences=seen.get(observation.event)??new Set();
+   // An event can be historical, explicitly absent now, and a future IF warning.
+   // These non-current mentions are not evidence of a present emergency.
+   // Never merge a current event with another occurrence, or duplicate a label.
+   if(occurrences.has(observation.occurrence)||occurrences.has("current")||
+      (observation.occurrence==="current"&&occurrences.size))reject("clinical_events");
+   occurrences.add(observation.occurrence);
+   seen.set(observation.event,occurrences);
    const statement=ownerStatements.find(t=>t.ref===observation.ownerStatementRef);
    if(observation.ownerStatementRef!==null&&!statement)reject("owner_statement_reference");
    if(observation.occurrence==="current"&&!statement)reject("event_evidence");
