@@ -5,6 +5,15 @@ import { readFileSync } from 'node:fs';
 const modulePath=process.env.FURVISE_PGLITE_MODULE || '@electric-sql/pglite';
 const native=process.argv.includes('--docker');
 const fullSchema=native || process.argv.includes('--full-schema');
+const v2=process.argv.includes('--v2');
+if(v2 && !fullSchema) throw new Error('--v2 requires --full-schema or --docker');
+const writer=v2 ? 'apply_ask_task_v2' : 'apply_ask_task';
+const statement=v2
+ ? 'select apply_ask_task_v2($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,null,null,$11) as result'
+ : 'select apply_ask_task($1,$2,$3,$4,$5,$6,$7,$8,$9,null,null,$10) as result';
+const writerSignature=v2
+ ? 'public.apply_ask_task_v2(uuid,uuid,uuid,text,uuid,text,text,uuid,uuid,integer,timestamptz,text,boolean)'
+ : 'public.apply_ask_task(uuid,uuid,uuid,text,uuid,text,uuid,uuid,integer,timestamptz,text,boolean)';
 const extensions={};
 if(fullSchema && !native) {
  const {pathToFileURL}=await import('node:url');
@@ -36,7 +45,7 @@ await db.query('insert into dog_profiles(id,user_id,name) values ($1,$2,$3),($4,
 await db.query("insert into ask_conversations(id,user_id,pet_profile_id,title) values ($1,$2,$3,'Task continuation audit')",[id(20),id(1),id(10)]);
 async function message(n,text) { await db.query('insert into ask_conversation_messages(id,conversation_id,user_id,role,user_text,created_at,request_id,sequence_number) values($1,$2,$3,\'user\',$4,\'2026-09-15T20:00:00Z\',$1,$5)',[id(n),id(20),id(1),text,n]); }
 async function apply(n,source,text,{intent='save',pet=null,task=null,revision=null,user=id(1),requiresAnswer=false}={}) {
- return (await db.query('select apply_ask_task($1,$2,$3,$4,$5,$6,$7,$8,$9,null,null,$10) as result',[user,id(20),id(n),intent,id(source),text,pet,task,revision,requiresAnswer])).rows[0].result;
+ return (await db.query(statement,[user,id(20),id(n),intent,id(source),text,...(v2 ? [intent==='cancel' ? null : text] : []),pet,task,revision,requiresAnswer])).rows[0].result;
 }
 let checks=0;
 await message(30,'so i gave him medicine yesterday');
@@ -108,7 +117,7 @@ await db.query('update ask_conversation_messages set response_data=$1 where id=$
 assert.equal(await mixedStatus(),'completed');checks++;
 assert.equal((await db.query('select read_ask_task_context($1,$2) as result',[id(1),id(20)])).rows[0].result.pendingTask,null);checks++;
 for(const role of ['anon','authenticated']) {
- const privileges=(await db.query("select has_function_privilege($1,'public.apply_ask_task(uuid,uuid,uuid,text,uuid,text,uuid,uuid,integer,timestamptz,text,boolean)','execute') as allowed",[role])).rows[0];
+ const privileges=(await db.query("select has_function_privilege($1,$2,'execute') as allowed",[role,writerSignature])).rows[0];
  assert.equal(privileges.allowed,false);checks++;
 }
 assert.equal((await db.query("select relrowsecurity from pg_class where oid='private.ask_tasks'::regclass")).rows[0].relrowsecurity,true);checks++;
@@ -120,8 +129,7 @@ if(native) {
  try {
   await db.exec('set role service_role;');
   await other.exec("set role service_role; set request.jwt.claim.role='service_role';");
-  const args=[id(1),id(20),id(61),'save',id(60),'Sable rested by the window',id(10),null,null,false];
-  const statement='select apply_ask_task($1,$2,$3,$4,$5,$6,$7,$8,$9,null,null,$10) as result';
+  const args=[id(1),id(20),id(61),'save',id(60),'Sable rested by the window',...(v2 ? ['Sable rested by the window'] : []),id(10),null,null,false];
   const results=await Promise.all([db.query(statement,args),other.query(statement,args)]);
   assert.equal(results[0].rows[0].result.entryId,results[1].rows[0].result.entryId);checks++;
   await db.exec('reset role;');
@@ -130,4 +138,4 @@ if(native) {
  } finally {await other.close();}
 }
 await db.close();
-console.log(`${checks} PostgreSQL continuation assertions passed`);
+console.log(`${checks} PostgreSQL continuation assertions passed (${writer})`);

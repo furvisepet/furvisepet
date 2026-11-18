@@ -2,6 +2,8 @@ import { consumeCatalogContinuationToken, type CatalogContinuationToken } from "
 import type { PipelineStage } from "../execution-deadline.ts";
 import { getActiveAiAdmission } from "./context.ts";
 import { AiAdmissionError } from "./errors.ts";
+import { requireApprovedAiModel } from "../model-policy.ts";
+import { ASK_BUNDLE_OUTPUT_CEILING } from "./whole-ask-reservation.ts";
 
 export type ProviderCallPurpose = "catalog_continuation" | "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview"
   | "task_review" | "task_repair" | "task_rereview";
@@ -23,6 +25,8 @@ export async function executeAdmittedProviderCall<T>(input: {
   model: string;
   providerInput: unknown;
 }) {
+  // Reject unapproved names before test overrides, admission, retry or any SDK call.
+  requireApprovedAiModel(input.model);
   input = { ...input, purpose: canonicalReviewPurpose(input.purpose) };
   if (input.purpose === "catalog_continuation") {
     if (input.stage !== "catalog_continuation") throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "catalog_authority_wrong_phase");
@@ -94,10 +98,13 @@ export async function executeAdmittedResponsesRequest<R extends Record<string, u
     || !Number.isSafeInteger(input.maxOutputTokens) || input.maxOutputTokens <= 0) {
     throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_request_contract_mismatch");
   }
+  const outputTokens = getActiveAiAdmission()?.wholeAskPrepaid
+    ? Math.min(input.maxOutputTokens, ASK_BUNDLE_OUTPUT_CEILING) : input.maxOutputTokens;
+  if (outputTokens !== input.maxOutputTokens) Object.assign(request, { max_output_tokens: outputTokens });
   freezeProviderRequest(request);
   return executeAdmittedProviderCall({
     purpose: input.purpose, catalogAuthorization: input.catalogAuthorization, reserveMs: input.reserveMs, stage: input.stage,
-    model: input.model, maxOutputTokens: input.maxOutputTokens,
+    model: input.model, maxOutputTokens: outputTokens,
     providerInput: request, invoke: () => input.invoke(request),
   });
 }

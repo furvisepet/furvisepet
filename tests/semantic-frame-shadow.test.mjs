@@ -198,7 +198,7 @@ test("shadow trace is privacy-limited, machine-queryable, and compares interpret
   const analysis = buildShadowSemanticAnalysis({
     activeEpisodes: [], acceptedCareActions: [], acceptedLearnings: [], acceptedSemanticEvents: [], conversationTurns: [], eligiblePets: pets,
     frame: fixture.frame, message: fixture.message, ownerId: "owner-1", requestId: "trace-stable", selectedPetId: "pet-luna", sourceMessageId: "message-1",
-    reasoning: { model: "shadow-test-v1", messageUnderstanding: { needsClarification: false } },
+    reasoning: { model: "gpt-5.4-mini", messageUnderstanding: { needsClarification: false } },
     recoveryAssessments: [{
       candidate: true, promoted: true, effectiveConfidence: 0.928, threshold: 0.92, reasons: ["RECOVERY_PROMOTED"],
       model: { status: "partial", confidence: 0.88, terminalSupport: 0 }, evidence: { grounded: true, score: 1 },
@@ -236,7 +236,7 @@ test("frames cannot contain database IDs and unsupported evidence is rejected by
   const analysis = buildShadowSemanticAnalysis({
     activeEpisodes: [], acceptedCareActions: [], acceptedLearnings: [], acceptedSemanticEvents: [], conversationTurns: [], eligiblePets: pets,
     frame: corrupted, message: fixture.message, ownerId: "owner-1", requestId: "trace-2", selectedPetId: "pet-luna", sourceMessageId: "message-2",
-    reasoning: { model: "shadow-test-v1", messageUnderstanding: { needsClarification: false } },
+    reasoning: { model: "gpt-5.4-mini", messageUnderstanding: { needsClarification: false } },
   });
   assert.equal(analysis.trace.governance[0].reasonCode, "EVIDENCE_NOT_FOUND");
   assert.deepEqual(analysis.trace.shadowDestinations, []);

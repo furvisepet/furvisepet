@@ -76,6 +76,19 @@ test("malformed, truncated, unexpected or bypass variants are rejected before au
  const missing=structuredClone(good);delete missing.request.scope;bads.push(missing);
  for(const value of bads)assert.throws(()=>p.decode(value,()=>{}));
 });
+test("invalid native semantic fields retain precise fail-closed diagnostics",()=>{
+ const p=plan(),good=p.encode(structuredClone(fixtures[0].canonical),()=>{});
+ for(const [field,value] of [["referenceTurnIds",[42]],["scope",42]]){
+   const proposal=structuredClone(good);
+   proposal.request[field]=value;
+   assert.throws(()=>p.decode(proposal,()=>{}),
+     error=>error?.message==="ASK_DIRECT_FIELD_TYPE"&&error?.cause?.field===field);
+   const canonical=structuredClone(fixtures[0].canonical);
+   canonical.request[field]=value;
+   assert.throws(()=>p.encode(canonical,()=>{}),
+     error=>error?.message==="ASK_DIRECT_FIELD_TYPE"&&error?.cause?.field===field);
+ }
+});
 test("catalog envelope stays isolated and subject to original codec",()=>{
  const p=plan(),catalog={request:{version:"ask-catalog-intent.v1",purpose:"receipt",sourceTurnId:"u1"}};
  const wire=p.encode(catalog,()=>{});

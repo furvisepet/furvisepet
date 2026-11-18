@@ -11,7 +11,7 @@ export async function episodeOrganFixture(question,{rows=[],fixturePets=pets,pet
  const db={...base,rpc(name,args){if(!name.startsWith('read_ask_')){effects.push(name);throw Error('EPISODE_UNIT_WRITE_FORBIDDEN');}return base.rpc(name,args);},
   from(table){const chain=base.from(table);return new Proxy(chain,{get(target,key){if(['insert','update','delete','upsert'].includes(key))return()=>{effects.push(table+':'+key);throw Error('EPISODE_UNIT_WRITE_FORBIDDEN')};return Reflect.get(target,key);}});}};
  let initial=await buildFurviseContext({supabase:db,userId:ownerId,petId,conversationId:'chat',conversationPetId:petId,currentMessage:question,historyAccess});
- if(interpretationProposal){const {recoverAskInterpretation,prepareAskInterpretationRequest}=await import('../../../app/lib/intelligence/interpret-ask.ts');const prepared=prepareAskInterpretationRequest(initial,'gpt-5-mini');initial={...initial,askInterpretation:recoverAskInterpretation(requestProposal(interpretationProposal,question),prepared.context)};}
+ if(interpretationProposal){const {recoverAskInterpretation,prepareAskInterpretationRequest}=await import('../../../app/lib/intelligence/interpret-ask.ts');const prepared=prepareAskInterpretationRequest(initial,'gpt-5.4-mini');initial={...initial,askInterpretation:recoverAskInterpretation(requestProposal(interpretationProposal,question),prepared.context)};}
  if(priorHistory)initial={...initial,askHistory:priorHistory};
  const context=await retrieveEpisodeHistory(initial,db,authoritativePetIds);
  assert.ok(context.episodeResult,'the case must request an episode organ operation');

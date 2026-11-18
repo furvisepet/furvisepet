@@ -89,10 +89,11 @@ test("pricing is centralized, fixed-point, and unknown models never imply zero c
   assert.equal(price.cachedInputMicrodollarsPerMillionTokens, 75_000);
   assert.equal(price.outputMicrodollarsPerMillionTokens, 4_500_000);
   assert.equal(estimateProviderCostMicrodollars("gpt-5.4-mini", { inputTokens: 1_000_000, outputTokens: 1_000_000 }), 5_250_000);
+  assert.equal(getModelPrice("gpt-5.4"), null);
+  assert.equal(getModelPrice("gpt-6.1-terra"), null);
   assert.equal(estimateProviderCostMicrodollars("unknown-model", { inputTokens: 1, outputTokens: 1 }), null);
   assert.equal(estimateInputTokens("x".repeat(3_001)), 1_001);
 });
-
 test("global, feature, daily, emergency, and model checks precede any provider reservation", () => {
   const source = read("app/lib/ai/usage-guard/admission.ts");
   const ordered = ["!config.enabled", "!isAiFeatureEnabled", "!config.configured", "!getModelPrice", "emergencyStatus", "emergency.disabled", "admitOperation", "reserveNextCall"];
@@ -135,7 +136,8 @@ test("global shutdown is server-only and memory extraction can be disabled witho
   const env = read(".env.example");
   const config = read("app/lib/ai/usage-guard/config.ts");
   assert.doesNotMatch(env, /NEXT_PUBLIC_FURVISE_AI|NEXT_PUBLIC_UPSTASH/);
-  assert.match(config, /FURVISE_AI_ENABLED/);
+  assert.match(read("app/lib/ai/availability.ts"), /FURVISE_AI_ENABLED/);
+  assert.match(config, /enabled: isAiEnabled\(env\)/);
   assert.match(config, /FURVISE_AI_MEMORY_EXTRACTION_ENABLED/);
   assert.match(read("app/lib/intelligence/run-intelligence.ts"), /isAiMemoryExtractionEnabled/);
   assert.match(read("app/lib/intelligence/run-feature-intelligence.ts"), /isAiMemoryExtractionEnabled/);

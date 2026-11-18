@@ -23,7 +23,7 @@ test('provider validation rejects the retired planner shape and all unknown vers
 });
 test('current contract rejects foreign identities and preserves typed failure diagnostics',async()=>{
  const events=[];
- await assert.rejects(interpretAskQuestion({context,model:'gpt-5-mini',onProviderEvent:e=>events.push(e),client:{responses:{async create(){
+ await assert.rejects(interpretAskQuestion({context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),client:{responses:{async create(){
  return {status:'completed',output_text:JSON.stringify(proposal(context.currentMessage,{petNames:['NotOwned']})),usage:{input_tokens:12,output_tokens:8}};
  }}}}),e=>e.stage==='interpretation_failed'&&e.diagnostics.providerErrorCode==='ASK_REQUEST_CONTRACT_OWNERSHIP');
  assert.deepEqual(events.map(e=>e.outcome),['started','failed']);assert.equal(events.at(-1).inputTokens,12);
@@ -144,7 +144,7 @@ for(const [name,change]of [
 ])test('strict non-profile proposal cannot repair '+name,async()=>{
  const p=appendProposal();change(p);const ctx=prepareAskInterpretationRequest(sourceContext(appendQuestion),'gpt-5.4-mini').context;
  assert.throws(()=>recoverAskInterpretation(p,ctx),/ASK_REQUEST/);
- if(name==='unknown source reference')await assert.rejects(wireCall(ctx,p,{expectedCalls:0}),/ASK_WIRE_CANONICAL_SCHEMA/);
+ if(name==='unknown source reference')await assert.rejects(wireCall(ctx,p,{expectedCalls:0}),error=>error.message==='ASK_DIRECT_FIELD_TYPE'&&error.cause?.field==='referenceTurnIds');
  else await assert.rejects(wireCall(ctx,p),e=>e.stage==='interpretation_failed');
 });
 for(const value of [{nodes:[{_:'UNKNOWN_TAG'}]},{request:{version:'ask-request.v99'}},{}])test('malformed wire cannot manufacture an update or authorize repair: '+JSON.stringify(value),async()=>{

@@ -5,12 +5,19 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  workflow_dispatch:
+
+concurrency:
+  group: security-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   ask-database-contract:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -32,9 +39,14 @@ jobs:
         run: node scripts/audits/ask-task-continuation.sql.mjs --full-schema
 
   verify:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
+      OPENAI_API_KEY: ""
+      FURVISE_AI_ASK_ENABLED: "false"
+      FURVISE_AI_ENABLED: "false"
+      FURVISE_AI_MEMORY_EXTRACTION_ENABLED: "false"
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
     steps:
@@ -52,7 +64,9 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
       - name: Focused security tests
-        run: npm run test:security
+        run: node scripts/check-security-release.mjs
+      - name: Journal release regressions
+        run: npm run test:release
       - name: Full tests
         run: npm test
       - name: Production dependency audit

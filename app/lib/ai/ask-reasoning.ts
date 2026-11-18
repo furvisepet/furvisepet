@@ -48,6 +48,7 @@ import type { PetConcern } from "./concern-engine.ts";
 import type { CareEpisode } from "../intelligence/episodes/types.ts";
 import type { ActiveConcernMessageState } from "./turn-classifier.ts";
 import { OPENAI_ANALYSIS_MODEL } from "./config.ts";
+import { requireApprovedAiModel } from "./model-policy.ts";
 import {
   ASK_MAX_OUTPUT_TOKENS,
   interpretStructuredProviderResponse,
@@ -418,6 +419,8 @@ const unifiedInstructions = [
 export function getAskModelConfiguration(env: Record<string, string | undefined> = process.env) {
   const primary = env.OPENAI_ASK_PRIMARY_MODEL?.trim() || env.OPENAI_ASK_MODEL?.trim() || env.OPENAI_ASK_RESPONSE_MODEL?.trim() || OPENAI_ANALYSIS_MODEL;
   const fallback = env.OPENAI_ASK_FALLBACK_MODEL?.trim() || null;
+  requireApprovedAiModel(primary);
+  if (fallback) requireApprovedAiModel(fallback);
   return { primary, fallback, primaryUsedDefault: !env.OPENAI_ASK_PRIMARY_MODEL?.trim() && !env.OPENAI_ASK_MODEL?.trim() };
 }
 
@@ -425,7 +428,7 @@ export function getAskModelConfiguration(env: Record<string, string | undefined>
  * Planning and every non-brief schema preserve the existing Ask routing. */
 export function getStructuredFeatureModelConfiguration(schemaName: string, env: Record<string, string | undefined> = process.env) {
   return schemaName === "vet_brief_content" || schemaName === "vet_brief_review"
-    ? { primary: "gpt-5.4", fallback: null, primaryUsedDefault: false }
+    ? { primary: OPENAI_ANALYSIS_MODEL, fallback: null, primaryUsedDefault: false }
     : getAskModelConfiguration(env);
 }
 
@@ -1529,7 +1532,7 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
 }
 
 function supportsReasoningEffort(model: string) {
-  return /^gpt-5(?:\.|-|$)/i.test(model);
+  return /^gpt-(?:5|6)(?:\.|-|$)/i.test(model);
 }
 
 function isRepairableStructuredOutput(error: AskPipelineError) {

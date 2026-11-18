@@ -120,3 +120,76 @@ test("bounded saved_profile repair passes real admission and production wire dec
   if(prior===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=prior;
  }
 });
+
+test("bounded canonical wire repair uses at most one additional funded call and keeps Binder authoritative",async t=>{
+ t.mock.method(console,"info",()=>{});t.mock.method(console,"warn",()=>{});
+ const prior=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
+ let a;
+ try{
+  const context=structuredClone(corpus.contexts.no_numeric);
+  const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini");
+  const fixture=corpus.fixtures.filter(f=>f.context==="no_numeric" && f.canonical.request.evidenceBasis==="saved_history")
+    .find(f=>{try{return !recoverAskInterpretation(f.canonical.request,prepared.context).planningRecovery}catch{return false}});
+  assert.ok(fixture,"expected valid saved-history canonical fixture");
+  const valid=prepared.transport.encode(fixture.canonical,()=>{});
+  const invalid=structuredClone(valid);
+  invalid.request.mode="update"; // Structurally legal scalar, forbidden by strict saved-history branch
+  assert.throws(()=>prepared.transport.decode(invalid,()=>{}),/ASK_WIRE_CANONICAL_SCHEMA/);
+  a=await admitAiOperation({env,store:new MemoryAiGuardTestStore(),feature:"ask",intendedModel:"gpt-5.4-mini",
+    now:new Date("2039-03-17T12:00:00Z"),requestId:"wire-canonical-one-repair",
+    userId:context.owner.userId,payload:{fixture:"wire-canonical-one-repair"}});
+  let calls=0;
+  const actual=await a.run(()=>interpretAskQuestion({context,model:"gpt-5.4-mini",
+   client:{responses:{create:async request=>{
+    calls++;assert.ok(calls<=2,"one bounded repair, never a loop");
+    assert.ok(JSON.stringify(request).length<=60000);
+    if(calls===1) assert.deepEqual(request.text.format.schema,prepared.request.text.format.schema);
+    else {
+      assert.notDeepEqual(request.text.format.schema,prepared.request.text.format.schema);
+      const options=request.text.format.schema.properties.request.anyOf;
+      assert.equal(options.length,2,"one saved-history branch and catalog alternative");
+      assert.ok(options[0].properties.evidenceBasis.enum.includes("saved_history"));
+    }
+    if(calls===2){
+      const sent=JSON.parse(request.input);
+      assert.equal(sent.contractRepair.validationCode,"ASK_WIRE_CANONICAL_SCHEMA");
+      assert.equal(Object.hasOwn(sent.contractRepair,"rejectedProposal"),false);
+      assert.match(request.instructions,/For saved_history/);
+    }
+    return {status:"completed",output_text:JSON.stringify(calls===1?invalid:valid),
+      usage:{input_tokens:2000,output_tokens:500}};
+   }}}}));
+  assert.equal(calls,2);
+  assert.deepEqual(actual,recoverAskInterpretation(fixture.canonical.request,prepared.context));
+ }finally{
+  if(a)await a.release();
+  if(prior===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=prior;
+ }
+});
+test("a second canonical wire rejection fails closed without a third paid retry",async t=>{
+ t.mock.method(console,"info",()=>{});t.mock.method(console,"warn",()=>{});
+ const prior=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
+ let a;
+ try{
+  const context=structuredClone(corpus.contexts.no_numeric);
+  const prepared=prepareAskInterpretationRequest(context,"gpt-5.4-mini");
+  const fixture=corpus.fixtures.filter(f=>f.context==="no_numeric" && f.canonical.request.evidenceBasis==="saved_history")
+    .find(f=>{try{return !recoverAskInterpretation(f.canonical.request,prepared.context).planningRecovery}catch{return false}});
+  assert.ok(fixture);
+  const invalid=prepared.transport.encode(fixture.canonical,()=>{});
+  invalid.request.mode="update";
+  a=await admitAiOperation({env,store:new MemoryAiGuardTestStore(),feature:"ask",intendedModel:"gpt-5.4-mini",
+    now:new Date("2039-03-17T12:00:00Z"),requestId:"wire-canonical-hard-stop",
+    userId:context.owner.userId,payload:{fixture:"wire-canonical-hard-stop"}});
+  let calls=0;
+  await assert.rejects(a.run(()=>interpretAskQuestion({context,model:"gpt-5.4-mini",
+   client:{responses:{create:async()=>{
+    calls++;
+    return {status:"completed",output_text:JSON.stringify(invalid),usage:{input_tokens:2000,output_tokens:500}};
+   }}}})),error=>error.diagnostics?.providerErrorCode==="ASK_INTERPRETATION_JSON");
+  assert.equal(calls,2);
+ }finally{
+  if(a)await a.release();
+  if(prior===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=prior;
+ }
+});

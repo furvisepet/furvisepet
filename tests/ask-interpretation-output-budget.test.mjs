@@ -78,7 +78,7 @@ for(const output of [[],[{type:'message',status:'incomplete',content:[{type:'out
   assert.equal(response.status,503);
   assert.equal(calls,1);assert.equal(f.state.planner,1);
    assert.equal(sent.max_output_tokens,ASK_INTERPRETATION_LIMITS.outputTokens);
-  assert.equal(sent.model,'offline-fixture');
+  assert.equal(sent.model,'gpt-5.4-mini');
   assert.equal(sent.text.format.strict,true);
   assert.deepEqual(f.state.credit,{status:'released',disposition:'release'});
   assert.equal(f.rows.ask_action_capabilities.length,0);

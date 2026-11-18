@@ -103,7 +103,7 @@ test("all browser care-entry create and edit gateways serialize local time befor
   assert.equal((clientSource.match(/const transportInput = prepareCareEntryInputForTransport\(input\)/g) || []).length, 3);
   assert.match(clientSource, /createCareEntry[\s\S]*JSON\.stringify\(\{ input: transportInput \}\)/);
   assert.match(clientSource, /createCareEntryUnlessDuplicate[\s\S]*JSON\.stringify\(\{ dedupe: true, input: transportInput \}\)/);
-  assert.match(clientSource, /updateCareEntry[\s\S]*JSON\.stringify\(\{ input: transportInput \}\)/);
+  assert.match(clientSource, /updateCareEntry[\s\S]*JSON\.stringify\(\{ input: transportInput, expectedUpdatedAt \}\)/);
 });
 
 test("Today introduces no fixed timezone offset and remains horizontally bounded", () => {

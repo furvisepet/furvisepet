@@ -151,6 +151,19 @@ function AskPageContent() {
   const [saveTargetId, setSaveTargetId] = useState<string | null>(null);
   const [saveDraft, setSaveDraft] = useState("");
   const [loading, setLoading] = useState(true);
+  const [askAvailable, setAskAvailable] = useState(false);
+  const [availabilityChecked, setAvailabilityChecked] = useState(false);
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 5000);
+    void fetch("/api/ai/availability", { cache: "no-store", signal: controller.signal })
+      .then(response => response.ok ? response.json() : null)
+      .then(value => { if (active) setAskAvailable(value?.ask === true); })
+      .catch(() => { if (active) setAskAvailable(false); })
+      .finally(() => { window.clearTimeout(timeout); if (active) setAvailabilityChecked(true); });
+    return () => { active = false; controller.abort(); window.clearTimeout(timeout); };
+  }, []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [conversationListError, setConversationListError] = useState("");
@@ -230,9 +243,9 @@ function AskPageContent() {
   const saveTarget = assistantMessages.find((message) => message.id === saveTargetId) || null;
   const hasThread = Boolean(thread.length);
   const requestActive = requestPhase === "submitting" || requestPhase === "receiving" || requestPhase === "retrying";
-  const composerUnavailable = submitting || requestActive || !activeProfile || !selectedPet;
+  const composerUnavailable = !askAvailable || submitting || requestActive || !activeProfile || !selectedPet;
   const explicitPetId = searchParams.get("pet") || "";
-  const showOnboardingStarters = !loading && shouldShowOnboardingAskStarters({
+  const showOnboardingStarters = askAvailable && !loading && shouldShowOnboardingAskStarters({
     activeConversationId,
     composerDraft: question,
     explicitPetId,
@@ -729,9 +742,17 @@ function AskPageContent() {
           </nav>}
           title="Ask Furvise"
         />
-        {usage && selectedPet ? <AskUsageNotice lifecycleStatus={activeProfile?.lifecycle_status || "active"} petId={selectedPet} usage={usage} /> : null}
+        {askAvailable && usage && selectedPet ? <AskUsageNotice lifecycleStatus={activeProfile?.lifecycle_status || "active"} petId={selectedPet} usage={usage} /> : null}
       </header>
 
+      {!askAvailable ? <section className="mx-auto my-5 max-w-[78rem] rounded-xl border border-[var(--pw-border)] p-5" role="status">
+        <h2 className="text-lg font-semibold">{availabilityChecked ? "Ask is taking a break" : "Checking Ask availability..."}</h2>
+        <p className="mt-2 text-sm">Your journal, History and pet profiles are still available.</p>
+        <div className="mt-3 flex flex-wrap gap-4">
+          <Link className={secondaryButton} href="/today">Open Today</Link>
+          <Link className={secondaryButton} href="/history">Open History</Link>
+        </div>
+      </section> : null}
       {loading ? <Status text="Getting your pet's space ready..." /> : null}
       {!loading && profiles.length === 0 ? <Status text="Choose a pet so Furvise knows who you're asking about." tone="warn" /> : null}
       {!loading && profiles.length > 0 && !activeProfile ? <Status text="There are no active pets to ask about. Open a retained profile from Pets to review its history with Furvise." /> : null}
@@ -745,7 +766,7 @@ function AskPageContent() {
           <div className="min-w-0">
             <section aria-label="Conversation with Furvise" className={`flex w-full min-w-0 flex-col ${thread.length || requestActive ? "sm:min-h-[66vh]" : ""}`} data-mobile-conversation-clearance="nav-and-composer">
               <div aria-live="polite" className="min-w-0 flex-1 space-y-5 sm:space-y-7">
-                {!thread.length && !submitting
+                {askAvailable && !thread.length && !submitting
                   ? <details className="ask-example-questions"><summary>Example questions</summary>{showOnboardingStarters
                     ? <OnboardingAskStarters onSelect={draftOnboardingQuestion} petName={petName} />
                     : <EmptyConversation lifecycleStatus={activeProfile?.lifecycle_status || "active"} petName={petName} onSelect={draftSuggestedQuestion} />}</details>

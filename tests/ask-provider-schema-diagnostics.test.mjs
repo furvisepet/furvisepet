@@ -156,7 +156,7 @@ test("generation boundary fingerprints the final admitted schema inside the exis
   });
   await assert.rejects(run({ responses: { create: async (value, options) => {
     calls++; assert.ok(deadlineEntered); assert.equal(value, sent); assert.equal(options.signal.aborted, false); throw failure;
-  } } }, { ...request(schema()), model: "offline", max_output_tokens: 8192 }, 1234, () => { attempted++; }, "generation_repair"),
+  } } }, { ...request(schema()), model: "gpt-5.4-mini", max_output_tokens: 8192 }, 1234, () => { attempted++; }, "generation_repair"),
   e => e === failure);
   assert.equal(admitted, 1); assert.equal(attempted, 1); assert.equal(calls, 1);
   assert.equal(diagnostic(failure).schema.sha256, hash(finalSchema));

@@ -22,7 +22,7 @@ test('read conflicts are discarded without creating a task, frame, mutation or e
   let calls = 0;
   const raw = { ...proposal, mutationIntent: 'correct_record', task: { intent: 'resume', sourceTurnId: null }, frame: { forged: 'save this' } };
   const before = structuredClone(raw);
-  const result = await interpretAskQuestion({ context, model: 'fixture', client: { responses: { async create() {
+  const result = await interpretAskQuestion({ context, model: 'gpt-5.4-mini', client: { responses: { async create() {
     calls++; return { output_text: JSON.stringify(raw) };
   } } } });
   assert.equal(calls, 1);

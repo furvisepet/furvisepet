@@ -6,9 +6,9 @@ import type { CareEntryInput } from "./supabase";
 
 const INPUT_KEYS = ["petProfileId", "category", "title", "note", "severity", "occurredAt"] as const;
 
-export async function parseCareRequest(request: Request, allowDedupe = false): Promise<
+export async function parseCareRequest(request: Request, allowDedupe = false, requireRevision = false): Promise<
   | { response: Response }
-  | { dedupe: boolean; input: CareEntryInput }
+  | { dedupe: boolean; input: CareEntryInput; expectedUpdatedAt?: string }
 > {
   let raw: unknown;
   try { raw = await readBoundedJson(request, API_BODY_LIMITS.standard); }
@@ -16,12 +16,13 @@ export async function parseCareRequest(request: Request, allowDedupe = false): P
     const tooLarge = error instanceof RequestBoundaryError && error.code === "PAYLOAD_TOO_LARGE";
     return { response: Response.json({ error: tooLarge ? "That care update is too large." : "Send a valid care update." }, { status: tooLarge ? 413 : 400 }) };
   }
-  if (!hasOnlyKeys(raw, allowDedupe ? ["input", "dedupe"] : ["input"])) return { response: Response.json({ error: "The care update contains unsupported fields." }, { status: 400 }) };
-  const body = raw as { input?: unknown; dedupe?: unknown };
+  if (!hasOnlyKeys(raw, requireRevision ? ["input", "expectedUpdatedAt"] : allowDedupe ? ["input", "dedupe"] : ["input"])) return { response: Response.json({ error: "The care update contains unsupported fields." }, { status: 400 }) };
+  const body = raw as { input?: unknown; dedupe?: unknown; expectedUpdatedAt?: unknown };
+  if (requireRevision && (typeof body.expectedUpdatedAt !== "string" || body.expectedUpdatedAt.length > 40 || !/^\d{4}-\d{2}-\d{2}T/.test(body.expectedUpdatedAt) || !Number.isFinite(Date.parse(body.expectedUpdatedAt)))) return { response: Response.json({ code: "CARE_ENTRY_REVISION_REQUIRED", error: "Reopen the latest saved note before editing." }, { status: 428 }) };
   if (!hasOnlyKeys(body.input, INPUT_KEYS)) return { response: Response.json({ error: "The care update contains unsupported fields." }, { status: 400 }) };
   const validation = validateCareEntryDraft(body.input);
   if (!validation.valid || !isUuid(validation.draft.petProfileId) || validation.draft.title.length > 200 || validation.draft.note.length > 4_000) {
     return { response: Response.json({ error: "Review the care update fields and try again." }, { status: 400 }) };
   }
-  return { dedupe: body.dedupe === true, input: validation.draft as CareEntryInput };
+  return { dedupe: body.dedupe === true, input: validation.draft as CareEntryInput, ...(requireRevision ? { expectedUpdatedAt: body.expectedUpdatedAt as string } : {}) };
 }

@@ -23,7 +23,7 @@ const proposal=(read=ticket(),ctx=context())=>({version:'ask-request.v2',mode:'r
  requirements:[],referenceTurnIds:[],evidenceNeeds:[],evidenceBasis:'saved_history',scope:'named',petNames:pets.slice(0,2).map(p=>p.name),
  operation:'recall',selection:'summary',quantity:'records',topic:'history',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,premiseQuotes:[]});
 async function run(p,ctx=context(),reject=false){
- let calls=0;const promise=interpretAskQuestion({context:ctx,model:'fixture',client:{responses:{create:async request=>{
+ let calls=0;const promise=interpretAskQuestion({context:ctx,model:'gpt-5.4-mini',client:{responses:{create:async request=>{
  calls++;const requestSchema=(await inspectAskWireContract(request,ctx)).canonicalSchema.properties.request.anyOf.find(b=>b.properties?.evidenceBasis?.enum?.includes('saved_history') && b.properties?.calculatePlan?.type==='null');const branches=requestSchema.properties.readTicket.anyOf.filter(b=>b.properties);
  for(const b of branches){assert.equal(Object.hasOwn(b.properties,'needs'),false);
  for(const item of probeVariants(b.properties.probes.items)){

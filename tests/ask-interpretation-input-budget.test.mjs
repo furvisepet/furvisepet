@@ -1,4 +1,4 @@
-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+import { providerFixturePlan } from "./helpers/provider-wire-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -53,7 +53,7 @@ for(const numeric of [false,true])for(const count of [0,2,8,39])
    const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async request=>{
     calls++;assert.equal(JSON.stringify(request),snapshots.at(-1));assert.ok(Object.isFrozen(request));
     assert.equal(JSON.stringify(request).length,JSON.stringify(p.request).length);
-    return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:proposal(ctx)})),usage};
+    return {status:"completed",output_text:JSON.stringify(providerFixturePlan(p).encode({request:proposal(ctx)})),usage};
    }}}});
    assert.deepEqual(result.petIds,["pet-0"]);
   });assert.equal(calls,1);
@@ -88,7 +88,7 @@ test("omitted IDs and selected-pet guesses are rejected by the actual Binder, in
  const ctx=context(39);ctx.currentMessage="What was his last recorded weight?";ctx.currentTurn.text=ctx.currentMessage;ctx.ownerNoteSpans=[];
  const p=prepareAskInterpretationRequest(ctx,model),omitted=ctx.conversationTurns.find(t=>!p.context.conversationTurns.some(x=>x.id===t.id)&&t.id!=="current");
  assert.ok(omitted);const bad=proposal(ctx);bad.referenceTurnIds=[omitted.id];
- assert.throws(()=>recursiveFixturePlan(p.wire).encode({request:bad}),/ASK_WIRE_/);
+ assert.throws(()=>p.wire.encode({request:bad}),/ASK_WIRE_/);
  const unavailable=recoverAskInterpretation(bad,p.context);assert.match(unavailable.planningRecovery,/REFERENCE/);assert.deepEqual(unavailable.petIds,[]);assert.equal(unavailable.request,undefined);
  const guessed={...proposal(ctx),scope:"selected",petNames:[]};
  assert.throws(()=>recoverAskInterpretation(guessed,p.context),/OMITTED_SUBJECT_REFERENCE/);
@@ -99,7 +99,7 @@ test("omitted IDs and selected-pet guesses are rejected by the actual Binder, in
 
 test("no safe fit causes no SDK invocation and releases unstarted accounting",async t=>{
  quiet(t);
- for(const text of ["x".repeat(60001),Array.from({length:200},(_,i)=>i+" kg").join(" ").slice(0,1200).padEnd(1200,"x")]){
+ for(const text of ["x".repeat(60001),"🐾".repeat(30001)]){
   const ctx=context(0);ctx.currentMessage=text;ctx.currentTurn.text=text;ctx.ownerNoteSpans=[];
   let calls=0;const store=new MemoryAiGuardTestStore(),a=await admitAiOperation({env,store,feature:"ask",intendedModel:model,userId:"owner",requestId:crypto.randomUUID(),payload:{},now:new Date("2039-01-01T00:00:00Z")});
   try{await assert.rejects(a.run(()=>interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{calls++;throw Error("UNEXPECTED_SDK");}}}})),e=>e.reason==="feature_token_budget_exceeded");}finally{await a.release();}
@@ -117,17 +117,29 @@ test("repair uses identical retained sources and real final-request admission",a
    assert.equal(JSON.stringify(request),snapshots[calls]);const input=JSON.parse(request.input);
    assert.deepEqual(input.userSources,p.input.userSources);assert.deepEqual(input.sourceWindow,p.input.sourceWindow);
    assert.deepEqual(request.text.format.schema,p.request.text.format.schema);
-   const candidate=calls++?good:bad;return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:candidate})),usage};
+   const candidate=calls++?good:bad;return {status:"completed",output_text:JSON.stringify(providerFixturePlan(p).encode({request:candidate})),usage};
   }}}});assert.deepEqual(result.petIds,["pet-0"]);assert.equal(snapshots.length,2);
  });assert.equal(calls,2);
 });
 
 test("oversize repair is rejected before a second SDK call; source window is not changed to make it fit",async t=>{
- quiet(t);const ctx=context(39),p=prepareAskInterpretationRequest(ctx,model),bad={...proposal(ctx),petNames:["Unowned subject"],
-  requirements:Array.from({length:8},(_,i)=>(i+" extra obligation ").padEnd(240,"x"))};
+ quiet(t);const ctx=context(0),pinned=turn("budget-pinned","x");
+ ctx.ownerNoteSpans=[];ctx.conversationTurns.unshift(pinned);ctx.pinnedUserSourceIds=[pinned.id];
+ const base=prepareAskInterpretationRequest(ctx,model);
+ // Measure the actual compact transport; keep original whole-source text intact.
+ const fits=count=>askRequestFitsInputBudget({...base.request,input:JSON.stringify({...base.input,
+   userSources:base.input.userSources.map(source=>source.id===pinned.id?{...source,text:"x".repeat(count)}:source)})});
+ let low=1,high=60000;
+ while(low<high){const middle=Math.ceil((low+high)/2);if(fits(middle))low=middle;else high=middle-1;}
+ pinned.text="x".repeat(Math.max(1,low-128));
+ const p=prepareAskInterpretationRequest(ctx,model),bad={...proposal(ctx),petNames:["Unowned subject"],
+   requirements:Array.from({length:8},(_,i)=>(i+" extra obligation ").padEnd(240,"x"))};
+ assert.ok(askRequestFitsInputBudget(p.request));
+ assert.equal(askRequestFitsInputBudget({...p.request,input:JSON.stringify({...p.input,
+   contractRepair:{validationCode:"ASK_REQUEST_CONTRACT_OWNERSHIP",rejectedProposal:bad}})}),false);
  let calls=0;await admitted(ctx,async()=>{
   await assert.rejects(interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{
-   calls++;return {status:"completed",output_text:JSON.stringify(recursiveFixturePlan(p.wire).encode({request:bad})),usage};
+   calls++;return {status:"completed",output_text:JSON.stringify(providerFixturePlan(p).encode({request:bad})),usage};
   }}}}),e=>e.reason==="feature_token_budget_exceeded");
  });assert.equal(calls,1);
 });
@@ -138,7 +150,7 @@ test("catalog hydration cannot replace the chosen current text, prior sources, o
   lifecyclePlan:{pendingDisposition:"keep",transition:{targetPetName:"Aster",toState:"deceased"},requiredSubjectState:null,authorizationQuote:ctx.currentMessage}};
  const intent={version:"ask-catalog-intent.v1",purpose:"lifecycle",scope:"subjects",ownerScope:null,sourceTurnId:"current",instructionQuote:ctx.currentMessage,authorizationQuote:ctx.currentMessage,
   subjects:[{basis:"named",petName:"Aster",sourceTurnId:"current",quote:"Aster"}],request};
- const encodedIntent=recursiveFixturePlan(p.wire).encode({request:intent});
+ const encodedIntent=providerFixturePlan(p).encode({request:intent});
  let calls=0,hydrates=0;
  await admitted(ctx,async()=>{
   const result=await interpretAskQuestion({context:ctx,model,client:{responses:{create:async()=>{calls++;return {status:"completed",output_text:JSON.stringify(encodedIntent),usage};}}},

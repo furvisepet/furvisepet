@@ -201,11 +201,11 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
     );
   const transport = createDirectSemanticAskWirePlan(wire, wire.instructions, askRequestSchema(proposedSemanticFrameJsonSchema, context), checkBudget);
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
-    ...(/^gpt-5\.4(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
+    ...(/^gpt-5\.4-mini(?:-|$)/i.test(model) ? { reasoning: { effort: "none" } } : /^gpt-(?:5|6)(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
     instructions: transport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: createAskProviderWireSchema(transport.schema, checkBudget) } } };
 
     checkBudget();
-    return { context, input, wire, transport, request };
+    return { context, input, wire, transport, request, providerContract: canonicalSchema.properties.request };
   };
   let chosen: ReturnType<typeof build> | undefined;
   // Start with mandatory sources. Add only whole recent turns, stopping at
@@ -221,6 +221,36 @@ export function prepareAskInterpretationRequest(original: InterpretationContext,
   throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "feature_token_budget_exceeded");
 }
 
+// Use an untrusted failed proposal only to select a smaller, reviewed model-facing
+// repair grammar. The original canonical decoder and Binder still validate everything.
+function savedHistoryRepairBranch(rawText: string | null, providerContract: unknown): Record<string, unknown> | null {
+  if (!rawText || rawText.length > RECURSIVE_TRANSPORT_LIMITS.maxSerializedCharacters) return null;
+  let proposal: Record<string, unknown>;
+  try {
+    const envelope = JSON.parse(rawText) as { request?: unknown };
+    if (!envelope || typeof envelope.request !== "object" || envelope.request === null || Array.isArray(envelope.request)) return null;
+    proposal = envelope.request as Record<string, unknown>;
+  } catch { return null; }
+  if (proposal.evidenceBasis !== "saved_history") return null;
+  let chronological = false;
+  if (typeof proposal.readTicket === "string" && proposal.readTicket.length < 20_000) {
+    try {
+      const ticket = JSON.parse(proposal.readTicket) as { outputs?: { strategy?: unknown } };
+      chronological = ticket?.outputs?.strategy === "chronological";
+    } catch { /* Invalid nested JSON is left invalid; the provider must regenerate it. */ }
+  }
+  const branches = (providerContract as { anyOf?: unknown[] })?.anyOf;
+  if (!Array.isArray(branches)) return null;
+  for (const candidate of branches) {
+    const branch = candidate as { properties?: Record<string, { type?: unknown; enum?: unknown[]; maxItems?: number }> };
+    const p = branch?.properties;
+    if (!p?.evidenceBasis?.enum?.includes("saved_history") || p.calculatePlan?.type !== "null") continue;
+    if ((p.evidenceNeeds?.maxItems === 0) !== chronological) continue;
+    return candidate as Record<string, unknown>;
+  }
+  return null;
+}
+
 export async function interpretAskQuestion({ context, model, client, onProviderEvent, catalogService }: {
   context: InterpretationContext; model: string; catalogService?: AskCatalogService;
   onProviderEvent?: (event: AskProviderEvent) => void;
@@ -228,7 +258,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
 }): Promise<AskInterpretation> {
   const prepared = prepareAskInterpretationRequest(context, model);
   context = prepared.context;
-  const { input, wire, transport, request } = prepared;
+  const { input, wire, transport, request, providerContract } = prepared;
   const parseWireRequest = (raw: string, checkRuntime: () => void): unknown => {
     checkRuntime();
     const value: unknown = JSON.parse(raw);
@@ -236,7 +266,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     // Retain the existing direct Node fixture compatibility. Real provider
     // responses must satisfy the wire schema and restore before Binder.
     if (process.env.NODE_TEST_CONTEXT && value && typeof value === "object"
-      && !Object.hasOwn(value, "nodes") && !Object.hasOwn(value, "root") && (Object.hasOwn(value, "request") || Object.hasOwn(value, "version")))
+      && !Object.hasOwn(value, "format") && !Object.hasOwn(value, "nodes") && !Object.hasOwn(value, "root") && (Object.hasOwn(value, "request") || Object.hasOwn(value, "version")))
       return parseProviderAskRequest(raw);
     return transport.decode(value, checkRuntime).request;
   };
@@ -296,12 +326,51 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
           return withAskProviderSchemaDiagnostic(request, () => activeClient.responses.create(request as never, { signal }));
         }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
-    const result = parseResponse(response, ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
+    let result = parseResponse(response, ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000);
+    let wireRepairUsed = false;
+    let settledResponse = response;
+    // A completed Mini reply can meet the provider's broad structural schema
+    // yet fail the original branch-specific canonical codec. Unlike semantic
+    // Binder errors, this error occurs BEFORE a proposal is available. Give
+    // the already-budgeted interpretation repair phase exactly one chance.
+    // Revalidate from scratch; never coerce, project, or accept invalid fields.
+    if (result.status === "invalid" && result.validationReason === "ASK_WIRE_CANONICAL_SCHEMA") {
+      const repairInstructions = ASK_INTERPRETATION_REPAIR_INSTRUCTIONS
+        + "\nChoose one canonical request branch. For saved_history, use a complete typed readTicket; when its outputs.strategy is chronological, evidenceNeeds must be []. For saved_profile, readTicket is null and profileFields nonempty. Inactive fields must be null/[] exactly as the canonical branch requires. Do not invent ownership, source IDs, facts or new tasks.";
+      const branch = savedHistoryRepairBranch(result.rawText, providerContract);
+      const repairTransport = branch
+        ? createDirectSemanticAskWirePlan(wire, wire.instructions, branch) : null;
+      const repairRequest = { ...request,
+        instructions: (repairTransport ? repairTransport.instructions + "\n" + ASK_USER_SOURCE_INSTRUCTIONS : request.instructions)
+          + "\n\n" + repairInstructions,
+        input: JSON.stringify({ ...input, contractRepair: { validationCode: "ASK_WIRE_CANONICAL_SCHEMA" } }),
+        text: repairTransport ? { format: { type: "json_schema" as const, name: "furvise_ask_interpretation",
+          strict: true, schema: createAskProviderWireSchema(repairTransport.schema) } } : request.text,
+      };
+      assertAskRequestInputBudget(repairRequest);
+      wireRepairUsed = true;
+      console.info("[Ask Brain] bounded wire contract repair", { validationCode: "ASK_WIRE_CANONICAL_SCHEMA" });
+      const repairResponse = await executeAdmittedResponsesRequest({ purpose: "interpretation_repair", model,
+        maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
+        stage: "interpretation", reserveMs: ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs,
+        request: repairRequest,
+        invoke: (sent) => {
+          onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: Date.now() - started,
+            configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: "bounded_wire_contract_repair" });
+          return withProviderDeadline(signal => {
+            providerSignal = signal;
+            return withAskProviderSchemaDiagnostic(sent, () => activeClient.responses.create(sent as never, { signal }));
+          }, boundedProviderTimeout(ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs, "interpretation"));
+        },
+      });
+      settledResponse = repairResponse;
+      result = parseResponse(repairResponse, ASK_INTERPRETATION_REPAIR_LIMITS.timeoutMs, ASK_INTERPRETATION_REPAIR_LIMITS.reserveMs);
+    }
     // Arrival is not validation or authority. Timed-out/late provider results never reach this point.
     const proposal = result.status === "completed" ? result.parsed : null;
     ticketArrived = !!proposal && typeof proposal === "object" && ["readTicket", "appendJob", "writeJob"]
       .some(key => key in proposal && (proposal as Record<string, unknown>)[key] != null);
-    let metadata = { providerEnvelope: structuredProviderEnvelopeDiagnostic(response), inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
+    let metadata = { providerEnvelope: structuredProviderEnvelopeDiagnostic(settledResponse), inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
       parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens, validationDetails: result.validationReason || undefined, ticketArrived };
     if (result.status !== "completed") {
       const kind = result.status === "invalid" ? result.parsingAttempted ? "json" : "empty_output" : result.status;
@@ -375,7 +444,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       if (error instanceof StageDeadlineError || error instanceof AiAdmissionError) throw error;
       const rejected = result.parsed && typeof result.parsed === "object" ? result.parsed as Record<string, unknown> : null;
       const repairableProfileContract = rejected?.mode === "read" && rejected.evidenceBasis === "saved_profile";
-      if (!(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !repairableProfileContract) {
+      if (wireRepairUsed || !(error instanceof AskInterpretationValidationError) || error.category !== "semantic" || !repairableProfileContract) {
         if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
         throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
       }

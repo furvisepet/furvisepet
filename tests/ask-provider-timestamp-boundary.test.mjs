@@ -1,4 +1,4 @@
-import { recursiveFixturePlan } from "./helpers/recursive-wire-fixture.mjs";
+import { providerFixturePlan } from "./helpers/provider-wire-fixture.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
@@ -39,8 +39,8 @@ const dated=structuredClone(corpus.fixtures.find(f=>f.context==='no_numeric'&&f.
 dated.request.readTicket.authority='stored_report';dated.request.readTicket.temporal.calendar=null;
 dated.request.readTicket.attributedContexts=[{recorded:{from:dates[2],to:dates[3]},target:{from:dates[4],to:dates[5]}}];
 datePaths.forEach((p,i)=>set(dated.request.readTicket,p,dates[i]));
-const actualTransport=recursiveFixturePlan(prepareAskInterpretationRequest(context,"gpt-5.4-mini").wire);
-const actualDated=actualTransport.encode(dated),recursivePaths=dates.map(d=>{const paths=stringPaths(actualDated,d);assert.equal(paths.length,1);return paths[0];});
+const actualTransport=providerFixturePlan(prepareAskInterpretationRequest(context,"gpt-5.4-mini"));
+const actualDated=actualTransport.encode(dated);
 const datedWire=plan.encode(dated),wirePaths=dates.map(d=>{const paths=stringPaths(datedWire,d);assert.equal(paths.length,1);return paths[0];});
 const valid=['2000-02-29T12:34:56Z','2024-02-29T00:00:00+05:30','2024-02-29T23:59:59.123456789-08:00','2400-02-29T12:34:56+23:59','1900-02-28T00:00:00-00:00','0000-02-29T00:00:00Z','2024-01-01T00:00:00.'+'7'.repeat(512)+'Z'];
 const invalid=['2023-02-29T00:00:00Z','1900-02-29T00:00:00Z','2100-02-29T00:00:00Z','2024-04-31T00:00:00Z','2024-00-01T00:00:00Z','2024-13-01T00:00:00Z','2024-01-00T00:00:00Z','2024-01-32T00:00:00Z','2024-01-01','2024-01-01T00:00:00','2024-01-01T00:00Z','2024-01-01 00:00:00Z','2024-01-01T24:00:00Z','2024-01-01T00:60:00Z','2024-01-01T00:00:60Z','2024-01-01T00:00:00+24:00','2024-01-01T00:00:00+00:60','2024-01-01T00:00:00+0530','2024-01-01T00:00:00.Z','2024-01-01T00:00:00z',' 2024-01-01T00:00:00Z','2024-01-01T00:00:00Z ','2024-01-01T00:00:00Z\n','2024-01-01T00:00:00Z\r\n','2024-01-01T00:00:00Z\u2028','2024-01-01T00:00:00Zjunk','}]}]'];
@@ -83,11 +83,16 @@ test('Binder keeps temporal ordering and attributed report ordering independent 
  }
  const t=ticketForBinder(dated.request.readTicket);t.attributedContexts[0].recorded.from='2024-01-01T00:00:00Z';assert.throws(()=>bindTypedReadTicket(t,[context.pet.id]));
 });
-test('actual admitted production parser rejects six malformed dates before catalog hydration or successful authority',async t=>{
+test('actual admitted parser rejects six malformed dates after one bounded repair, without catalog hydration or authority',async t=>{
  quiet(t);const old=process.env.NODE_TEST_CONTEXT;delete process.env.NODE_TEST_CONTEXT;
- try{for(const [i,path]of recursivePaths.entries()){
-  const wire=structuredClone(actualDated);set(wire,path,dates[i]+'\n');const a=await admit('bad-date-'+i);let calls=0,hydrates=0,capabilities=0;const events=[],snapshots=[];const begin=a.beginProviderCall.bind(a);a.beginProviderCall=async x=>{snapshots.push(JSON.stringify(x.input));return begin(x);};
-  try{await assert.rejects(a.run(()=>interpretAskQuestion({context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),catalogService:{requestId:'test',capability:()=>{capabilities++;throw Error('UNEXPECTED_CATALOG_CAPABILITY')},verify:async()=>{},hydrate:async()=>{hydrates++;throw Error('UNEXPECTED_HYDRATE')}},client:{responses:{create:async request=>{calls++;assert.equal(JSON.stringify(request),snapshots.at(-1));assert.ok(Object.isFrozen(request));assert.deepEqual(request.text.format.schema,createAskProviderWireSchema(actualTransport.schema));assert.equal(request.instructions,prepareAskInterpretationRequest(context,'gpt-5.4-mini').request.instructions);assert.equal(request.max_output_tokens,8192);return{status:'completed',output_text:JSON.stringify(wire),usage:{input_tokens:100,output_tokens:50}};}}}})),e=>e.diagnostics?.providerErrorCode==='ASK_INTERPRETATION_JSON');assert.equal(calls,1);assert.equal(hydrates,0);assert.equal(capabilities,0);assert.ok(!events.some(e=>e.outcome==='succeeded'));}finally{await a.release();}
+ try{for(const [i,path]of datePaths.entries()){
+  const wire=structuredClone(actualDated),ticket=JSON.parse(wire.request.readTicket);set(ticket,path,dates[i]+'\n');wire.request.readTicket=JSON.stringify(ticket);const a=await admit('bad-date-'+i);let calls=0,hydrates=0,capabilities=0;const events=[],snapshots=[];const begin=a.beginProviderCall.bind(a);a.beginProviderCall=async x=>{snapshots.push(JSON.stringify(x.input));return begin(x);};
+  try{await assert.rejects(a.run(()=>interpretAskQuestion({context,model:'gpt-5.4-mini',onProviderEvent:e=>events.push(e),catalogService:{requestId:'test',capability:()=>{capabilities++;throw Error('UNEXPECTED_CATALOG_CAPABILITY')},verify:async()=>{},hydrate:async()=>{hydrates++;throw Error('UNEXPECTED_HYDRATE')}},client:{responses:{create:async request=>{calls++;assert.equal(JSON.stringify(request),snapshots.at(-1));assert.ok(Object.isFrozen(request));if(calls===1)assert.deepEqual(request.text.format.schema,createAskProviderWireSchema(actualTransport.schema));else{assert.equal(request.text.format.strict,true);assert.equal(request.text.format.schema?.additionalProperties,false);assert.ok(JSON.stringify(request.text.format.schema).length<JSON.stringify(createAskProviderWireSchema(actualTransport.schema)).length,"bounded repair uses narrower saved-history schema");}if(calls===1)assert.equal(request.instructions,prepareAskInterpretationRequest(context,'gpt-5.4-mini').request.instructions);
+  else{assert.equal(calls,2,'at most one funded canonical repair');
+   assert.ok(request.instructions.startsWith(prepareAskInterpretationRequest(context,'gpt-5.4-mini').request.instructions));
+   assert.match(request.instructions,/Choose one canonical request branch/);
+   assert.equal(JSON.parse(request.input).contractRepair?.validationCode,'ASK_WIRE_CANONICAL_SCHEMA');
+  }assert.equal(request.max_output_tokens,8192);return{status:'completed',output_text:JSON.stringify(wire),usage:{input_tokens:100,output_tokens:50}};}}}})),e=>e.diagnostics?.providerErrorCode==='ASK_INTERPRETATION_JSON');assert.equal(calls,2,'malformed provider date receives one bounded repair and never a third call');assert.equal(hydrates,0);assert.equal(capabilities,0);assert.ok(!events.some(e=>e.outcome==='succeeded'));}finally{await a.release();}
  }}finally{if(old===undefined)delete process.env.NODE_TEST_CONTEXT;else process.env.NODE_TEST_CONTEXT=old;}
 });
 test('old zero-token failure, direct canonical output, and malformed graph fail closed with one call and no catalog work',async t=>{

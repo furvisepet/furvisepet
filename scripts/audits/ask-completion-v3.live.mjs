@@ -16,7 +16,7 @@ const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation
 const {enforceVerifiedStateClaims}=await import('../../app/lib/application-actions/state-claims.ts');
 const {resolveAskHistoryAccess}=await import('../../app/lib/intelligence/history-access.ts');
 const model=getAskModelConfiguration().primary;
-assert.equal(model,'gpt-5.4-mini','Live budget supports only the verified configured model');
+throw new Error('LEGACY_LIVE_QUALIFICATION_DISABLED: fresh non-5.4 model and audited cost ledger required.');
 assert.ok(process.env.OPENAI_API_KEY,'Existing key required');
 const ledgerPath=new URL('../../docs/ask-completion-v3-budget.json',import.meta.url);
 const ledger=existsSync(ledgerPath)?JSON.parse(readFileSync(ledgerPath,'utf8')):{authorizedUsd:10,reservationStopUsd:3,priorTrackedUsd:9.765873,reservedUsd:0,measuredUsd:0,calls:[],pricingSource:'https://developers.openai.com/api/docs/models/gpt-5.4-mini',pricing:{inputPerMillion:0.75,outputPerMillion:4.5},syntheticClock:'2026-09-09T12:00:00Z'};

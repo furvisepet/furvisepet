@@ -197,7 +197,7 @@ test("one Brain proposal reaches real memory retrieval and deterministic calcula
  const initial={owner:{userId:"owner"},pet:pets[0],eligiblePets:pets,currentMessage:"Calculate from saved observations.",
  conversationTurns:[],timeZone:"UTC",currentTurn:{id:"turn",role:"user",text:"Calculate from saved observations."},
  careEntries:[],selectedCareEntries:[],memories:[],activeConcerns:[],recentlyResolvedConcerns:[]};
- const interpretation=await interpretAskQuestion({context:initial,model:"fixture",client:{responses:{create:async()=>{
+ const interpretation=await interpretAskQuestion({context:initial,model:"gpt-5.4-mini",client:{responses:{create:async()=>{
  brainCalls++;return {output_text:JSON.stringify(envelope(proposal([calculation()]),rawTicket()))};}}}});
  const planned={...initial,askInterpretation:interpretation};
  const brain=buildAskBrainTurn({context:planned,logicalTurnId:"turn",authoritativePetIds:[pets[0].id]});
@@ -265,7 +265,7 @@ test('duplicate-clause Brain proposal fails once before any completed answer ass
  const ticket=rawTicket();ticket.selection.union=[clause('asc'),clause('asc')];
  const p=envelope(proposal([calculation()]),ticket);let calls=0;
  const context={owner:{userId:'owner'},pet:pets[0],eligiblePets:pets,currentMessage:p.question,conversationTurns:[],timeZone:'UTC',currentTurn:{id:'turn',role:'user',text:p.question}};
- await assert.rejects(interpretAskQuestion({context,model:'fixture',client:{responses:{create:async()=>{calls++;return {output_text:JSON.stringify(p)};}}}}),e=>e.stage==='interpretation_failed'&&/READ_TICKET|VALIDATION/.test(e.diagnostics.providerErrorCode));
+ await assert.rejects(interpretAskQuestion({context,model:'gpt-5.4-mini',client:{responses:{create:async()=>{calls++;return {output_text:JSON.stringify(p)};}}}}),e=>e.stage==='interpretation_failed'&&/READ_TICKET|VALIDATION/.test(e.diagnostics.providerErrorCode));
  assert.equal(calls,1);
  const disposition=assessTaskExecution({assessment:null,completion:[],responseMode:'answer',actions:[],careWriteRequired:false,careReceipt:{status:'skipped',careEntryIds:[]}});
  assert.notEqual(disposition.taskOutcome,'complete');assert.notEqual(disposition.answerOutcome,'complete');assert.equal(disposition.creditDisposition,'release');

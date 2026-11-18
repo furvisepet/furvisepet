@@ -1,3 +1,4 @@
+import { isAskEnabled } from "../../lib/ai/availability.ts";
 import { hydratePlanningCatalog, verifyPlanningCatalogSource } from "../../lib/intelligence/hydrate-planning-catalog.ts";
 import { executeStoredRead } from "../../lib/furvise-brain/stored-read-organ.ts";
 import {resolveRemovePlan} from "../../lib/furvise-brain/remove-job.ts";
@@ -20,7 +21,14 @@ import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlem
 import { createAskCreditSettlement } from "../../lib/ai/ask-credit-settlement.ts";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import { persistCanonicalSuggestions } from "../../lib/intelligence/canonical-suggestion-continuation.ts";
+import { classifyUserTurn, isExplicitAskMutationCommand } from "../../lib/ai/turn-classifier.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
+import { runReadOnlyAsk } from "../../lib/ask-read-only/core.mjs";
+import { loadReadOnlyContext } from "../../lib/ask-read-only/context.ts";
+import { readOnlyProvider } from "../../lib/ask-read-only/provider.ts";
+import { createReadOnlyDataAccess } from "../../lib/ask-read-only/data.ts";
+import { buildReadOnlyPublication } from "../../lib/ask-read-only/publication.ts";
+import { assessReadOnlyPublication } from "../../lib/ask-read-only/assessment.ts";
 import { interpretAskQuestion, readInterpretationSubject } from "../../lib/intelligence/interpret-ask.ts";
 import type { NeedCoverage } from "../../lib/intelligence/evidence-need-coverage.ts";
 import type { EvidenceNeed } from "../../lib/intelligence/evidence-needs.ts";
@@ -202,6 +210,12 @@ export async function GET(request: Request) {
 
 type AskRequestExecution = { deadline: OperationDeadline; durable?: { conversationId: string; userMessageId: string; logicalTurnId: string } };
 export async function POST(request: Request) {
+  // Stop before authentication lookups, conversation writes, credits or provider admission.
+  if (!isAskEnabled()) return Response.json({
+    code: "AI_FEATURE_UNAVAILABLE",
+    error: "Ask is taking a break. Your journal, History and pet profiles are still available.",
+  }, { status: 503, headers: { "Cache-Control": "private, no-store, max-age=0" } });
+
   const execution: AskRequestExecution = { deadline: new OperationDeadline(ASK_OPERATION_TIMEOUT_MS) };
   let response: Response;
   try { response = await executeAskRequest(request, execution); }
@@ -445,6 +459,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
 
   let orchestration;
   let sourceWindowDisclosure: string | null = null;
+  let readOnlyPublication: ReturnType<typeof buildReadOnlyPublication> | null = null;
+  let readOnlyAssessment: ReturnType<typeof assessReadOnlyPublication> | null = null;
   let creditReserved = false;
   let creditFinalState = "not_reserved";
   let providerCallCount = 0;
@@ -517,7 +533,39 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       }
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
       generationStage = "interpretation";
-      const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model, onProviderEvent,
+      if (!noteMode && petId !== "all" && !PUBLIC_V1_CAPABILITIES.askMutations && !isExplicitAskMutationCommand(question)) {
+         // Restore the proven V1 read-only engine, within current authentication,
+         // idempotency, rate, whole-Ask funded admission and provider accounting.
+         // The signed-in owner and the selected pet are checked again by the
+         // source-scoped context and every individual database read.
+         generationStage = "read_only_answer";
+         const readTimeZone = resolveAskTimeZone(aiCreditPayload.timeZone);
+         const readContext = await loadReadOnlyContext(
+           supabase, userId, petId, preparedRequest.conversationId,
+           preparedRequest.userMessageId, question);
+         const readResult = await runReadOnlyAsk({
+           ownerId: userId, selectedPetId: petId, question,
+           now: new Date().toISOString(), timeZone: readTimeZone, ...readContext,
+         }, {
+           provider: readOnlyProvider(model, onProviderEvent),
+           read: createReadOnlyDataAccess(supabase, userId, readTimeZone, historyAccess),
+         });
+         readOnlyPublication = buildReadOnlyPublication(readResult, userId, profiles[0].name || "your pet");
+          readOnlyAssessment = assessReadOnlyPublication(readResult,readOnlyPublication);
+         turnAuthoritativePetIds = [];
+         contextUsed = { petName: readOnlyPublication.contextUsed.petName, usedSources: readOnlyPublication.contextUsed.usedSources };
+         return {
+           aiResult: null, answer: {
+             title: "Furvise", summary: readOnlyPublication.response.summary,
+             sections: readOnlyPublication.response.sections, safetyNote: null,
+           },
+           concern: null, handledWithoutAi: false, intent: classifyUserTurn(question).intent,
+           safetyLevel: readOnlyPublication.response.urgency === "urgent" ? "urgent" as const : "normal" as const,
+           suggestion: null,
+         };
+       }
+       // Explicit note-mode and non-V1 operations retain the strict capability planner.
+       const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model, onProviderEvent,
         catalogService: { requestId: logicalTurnId, capability: publicV1AskCapability,
           verify: permit => verifyPlanningCatalogSource(permit, supabase),
           hydrate: async permit => {
@@ -526,8 +574,8 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
             return hydrated;
           } },
       });
-      sourceWindowDisclosure = interpretation.sourceWindow?.disclosure ?? null;
-      if (interpretation.catalogLimitation) {
+             sourceWindowDisclosure = interpretation.sourceWindow?.disclosure ?? null;
+       if (interpretation.catalogLimitation) {
         if (creditReserved) {
           const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
           creditReserved = false; creditFinalState = released ? "released" : "release_pending";
@@ -890,6 +938,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     }
   }
 
+  const completedReadOnly = readOnlyPublication as ReturnType<typeof buildReadOnlyPublication> | null;
   const reasoning = orchestration.aiResult;
   const historyCoverage = reasoning?.evidenceContract?.history;
   if (historyCoverage) {
@@ -940,7 +989,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     && governedAnswer.summary === "I can help with that.") {
     governedAnswer = { ...governedAnswer, summary: buildGriefResponseFallback(liveContext.pet.name || "your pet") };
   }
-  const conversationResponse = buildAskConversationResponse(governedAnswer, {
+  const conversationResponse = completedReadOnly ? completedReadOnly.response : buildAskConversationResponse(governedAnswer, {
     intent: reasoning?.userIntent || orchestration.intent,
     clarificationQuestion: reasoning?.responseMode === "clarification"
       ? reasoning.suggestedFollowUps[0] || null
@@ -955,7 +1004,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
     urgent: safetyLevel === "urgent",
     usedContextSummary: contextUsed.usedSources,
   });
-  const publication = inspectAskPublication(orchestration.answer, conversationResponse, liveContext.askInterpretation?.readOnly === true,
+  const publication = completedReadOnly ? { failure: null, response: null, displayed: null } : inspectAskPublication(orchestration.answer, conversationResponse, liveContext.askInterpretation?.readOnly === true,
     reasoning?.evidenceContract, liveContext.episodeResult);
   if (conversationResponse && publication.response) Object.assign(conversationResponse, publication.response);
   const integrityFailure = publication.failure;
@@ -1013,6 +1062,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         && classifyCurrentPetLoss(question) !== "confirmed_current"
         && !isExplicitCareHistorySaveRequest(question),
       intelligenceResult,
+      readOnlyAssessment,
       typedRequirements: typedTaskRequirements(liveContext.askInterpretation?.request),
 
       payloadHash: aiCreditPayloadHash,
@@ -1027,7 +1077,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       response: conversationResponse,
       actionTargetBindings,
       sourceMessage: question,
-      saveMetadata: buildAskSaveMetadata(conversationResponse, { intent: reasoning?.userIntent || orchestration.intent, question }),
+      saveMetadata: completedReadOnly ? { answerType: conversationResponse.answerType, persistenceEligible: false, reason: "read_only_ask" } : buildAskSaveMetadata(conversationResponse, { intent: reasoning?.userIntent || orchestration.intent, question }),
       safetyLevel,
       shoppingSuppressed: reasoning ? reasoning.shoppingSuppressed : safetyLevel === "urgent",
       suggestion: PUBLIC_V1_CAPABILITIES.askMutations && turnAuthoritativePetIds.length ? orchestration.suggestion : null,
@@ -1036,7 +1086,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       userId,
       turnLifecycle,
     }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
-    await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, assessment: getAnswerAssessment(), requestId, response: persistedResponse });
+    await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, assessment: completedReadOnly ? readOnlyAssessment : getAnswerAssessment(), requestId, response: persistedResponse });
     return persistedResponse;
   } catch (error) {
     await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);
@@ -1279,6 +1329,7 @@ async function persistAssistantAnswer({
   handledWithoutAi,
   historyReviewRequired = false,
   intelligenceResult = null,
+  readOnlyAssessment = null,
   typedRequirements = typedTaskRequirements(null),
 
   payloadHash,
@@ -1309,6 +1360,7 @@ async function persistAssistantAnswer({
   deferHighImpactLifecyclePersistence?: boolean;
   historyReviewRequired?: boolean;
   intelligenceResult?: FurviseIntelligenceResult | null;
+  readOnlyAssessment?: ReturnType<typeof assessReadOnlyPublication> | null;
   typedRequirements?: ReturnType<typeof typedTaskRequirements>;
   operationPayloadHash: string;
   operationOwnerToken: string;
@@ -1558,7 +1610,7 @@ async function persistAssistantAnswer({
         && (item.actionIndexes || []).some(index => index >= actions.applicationActions.length));
       const explicitHistoryWrite = typedRequirements.careWriteRequired || reviewedCareWrite;
       const taskExecution = assessTaskExecution({
-        assessment: intelligenceResult?.answerValidation.assessment || null,
+        assessment: readOnlyAssessment || intelligenceResult?.answerValidation.assessment || null,
         completion: reviewedCompletion,
         responseMode: intelligenceResult?.reasoning.responseMode || null,
         actions: actions.applicationActions,

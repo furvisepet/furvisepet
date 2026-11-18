@@ -32,6 +32,7 @@ export const REQUIRED_SECURITY_MIGRATION_NAMES = [
   "restrict_ask_conversation_mutation_authority",
   "launch_trigger_security_hardening",
   "align_reviewed_ask_reader_readiness",
+  "qualify_source_semantics_readiness",
 ] as const;
 
 export type SecurityCompatibilitySnapshot = {
