@@ -22,6 +22,23 @@ export function requiresSelectedPetContext(question,selectedPet) {
  }
  return named&&/\b(?:what (?:do )?(?:(?:you|u) )?think (?:of|about)|what(?:'s| is) your (?:opinion|impression) (?:of|about)|tell me about|what do you know about|describe|how (?:is|has) (?:my|our|the))\b/i.test(question);
 }
+/** An explicit latest saved note request for the currently authorized named pet
+ * cannot depend entirely on the model opting into a read. No fuzzy pet matching,
+ * clinical inference, source creation, or other-pet fallback. */
+export function requiresNamedLatestSavedNote(question,selectedPet,pets=[]) {
+ const name=String(selectedPet?.name??"").trim();
+ if(!name||!/^[\p{L}\p{N} .-]{1,80}$/u.test(name))return false;
+ if(!/\b(?:latest|most recent|newest)\s+(?:saved\s+)?(?:(?:journal|care|history)\s+)?(?:note|entry|record)\b/i.test(question))return false;
+ const q=String(question).toLocaleLowerCase();
+ const mentions=pet=>{
+  const label=String(pet?.name??"").trim().toLocaleLowerCase();if(!label)return false;
+  const boundary=i=>i<0||i>=q.length||!/[\p{L}\p{N}]/u.test(q[i]);
+  for(let i=q.indexOf(label);i>=0;i=q.indexOf(label,i+1))
+   if(boundary(i-1)&&boundary(i+label.length))return true;
+  return false;
+ };
+ return mentions(selectedPet)&&!pets.some(p=>p.id!==selectedPet.id&&mentions(p));
+}
 export const READ_ONLY_LIMITS = Object.freeze({ providerCalls: 2, tools: 4, records: 32, page: 16, sourceCharacters: 24000, dialogueCharacters: 8000 });
 const nullableDate = { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", description: "YYYY-MM-DD in the user's calendar, or null. Ask about an ambiguous year rather than guessing." };
 const object = properties => ({type:"object",additionalProperties:false,properties,required:Object.keys(properties)});
@@ -250,6 +267,7 @@ export async function runReadOnlyAsk(input,deps) {
   const references=restoreReadReferences(input.readReferences,pets);
   const namedContextPet=pets.find(pet=>requiresSelectedPetContext(input.question,pet))??null;
   const selectedPetContextRequired=!!namedContextPet;
+ const latestNamedNotePet=pets.find(p=>p.id===input.selectedPetId&&requiresNamedLatestSavedNote(input.question,p,pets))??null;
  const recentDialogue=input.dialogue.slice(-12);
  const dialogue=recentDialogue.map(t=>({role:t.role==="user"?"user":"assistant",text:String(t.text).slice(0,2000)}));
  while(JSON.stringify(dialogue).length>READ_ONLY_LIMITS.dialogueCharacters)dialogue.shift();
@@ -279,6 +297,11 @@ export async function runReadOnlyAsk(input,deps) {
   deps.onAnswerBoundary?.({outcome:"workflow_task_reconciled",reason:"current_intent_none"});
  }
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
+ if(latestNamedNotePet&&taskPlan){
+  taskPlan=taskPlan.map(t=>t.kind==="saved_content"?{...t,needsHistory:true,recordMode:"single",
+   pets:[latestNamedNotePet.handle],reference:null,
+   missing:t.missing.filter(k=>!["pet","year","date_meaning","which_record"].includes(k))}:t);
+ }
  if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
  const recovered=recoverBoundedCalendarRead(first,context,pets);
@@ -309,6 +332,23 @@ export async function runReadOnlyAsk(input,deps) {
     }
    }
    if(candidates.length>4)candidates=[...candidates.filter(c=>c.ownerContext),...candidates.filter(c=>!c.ownerContext)].slice(0,4);
+  }
+  if(latestNamedNotePet&&!emergency){
+   // Restore a missing or overconstrained first-pass read for the explicit
+   // latest saved note. Model-selected text/date searches cannot prove latest.
+   const isAuthoritative=call=>call.name==="search_saved_records"&&call.request.pet.id===latestNamedNotePet.id
+    &&call.request.kind==="history"&&call.request.goal==="boundary"&&call.request.orderBy==="recorded"
+    &&call.request.order==="desc"&&(call.request.offset??0)===0&&!call.request.terms?.length
+    &&!call.request.from&&!call.request.to&&!call.request.recordedFrom&&!call.request.recordedTo;
+   const already=candidates.find(isAuthoritative);
+   if(already)already.ownerContext=true;
+   else {
+    const args={pet:latestNamedNotePet.handle,from:null,to:null,query:null,offset:0,
+     goal:"boundary",orderBy:"recorded",recordedFrom:null,recordedTo:null,order:"desc",alternatives:[]};
+    candidates=[{id:"latest-owned-note",name:"search_saved_records",reference:null,
+     request:bindReadTool("search_saved_records",args,pets,references),ownerContext:true},...candidates].slice(0,4);
+   }
+   deps.onAnswerBoundary?.({outcome:"latest_owned_note_read_enforced",reused:!!already,readCount:candidates.length});
   }
   if(new Set(candidates.map(c=>c.id)).size!==candidates.length)fail("ASK_READ_TOOL_INVALID");
  }catch(error){deps.onSelectionRejected?.(readSelectionShape(first,pets));throw error;}
