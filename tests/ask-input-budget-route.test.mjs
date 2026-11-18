@@ -5,6 +5,7 @@ import {fixture,id} from "./helpers/ask-staged-route-fixture.mjs";
 import {runReadOnlyAsk} from "../app/lib/ask-read-only/core.mjs";
 import {loadReadOnlyContext} from "../app/lib/ask-read-only/context.ts";
 import {buildReadOnlyPublication} from "../app/lib/ask-read-only/publication.ts";
+import {assessReadOnlyPublication} from "../app/lib/ask-read-only/assessment.ts";
 import {admitAiOperation} from "../app/lib/ai/usage-guard/admission.ts";
 import {MemoryAiGuardTestStore} from "../app/lib/ai/usage-guard/memory-test-store.ts";
 const question="How can I make a calming evening routine for my dog?";
@@ -14,7 +15,7 @@ test("actual offline read-only route publishes and persists bounded-dialogue omi
  const f=fixture({creditLedger:true,fullCatalogPipeline:true,
   admitAiOperation:async input=>admission=await admitAiOperation({...input,store:new MemoryAiGuardTestStore(),env:{NODE_ENV:"test",FURVISE_AI_DAILY_CALL_LIMIT:"20",FURVISE_AI_DAILY_COST_LIMIT_USD:"10",FURVISE_RATE_LIMIT_HASH_SECRET:"offline-route-source-window-test-secret-1234567890"}}),
   readOnlyAdapter:{
-   runReadOnlyAsk,buildReadOnlyPublication,
+   runReadOnlyAsk,buildReadOnlyPublication,assessReadOnlyPublication,
    loadReadOnlyContext:async (...args)=>{observed=await loadReadOnlyContext(...args);return observed;},
    createReadOnlyDataAccess:()=>async()=>{throw Error("CONTEXT_WINDOW_MUST_NOT_READ_HISTORY");},
    readOnlyProvider:()=>async (_request,phase)=>{
