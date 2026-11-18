@@ -28,6 +28,7 @@ import { loadReadOnlyContext } from "../../lib/ask-read-only/context.ts";
 import { readOnlyProvider } from "../../lib/ask-read-only/provider.ts";
 import { createReadOnlyDataAccess } from "../../lib/ask-read-only/data.ts";
 import { buildReadOnlyPublication } from "../../lib/ask-read-only/publication.ts";
+import { assessReadOnlyPublication } from "../../lib/ask-read-only/assessment.ts";
 import { interpretAskQuestion, readInterpretationSubject } from "../../lib/intelligence/interpret-ask.ts";
 import type { NeedCoverage } from "../../lib/intelligence/evidence-need-coverage.ts";
 import type { EvidenceNeed } from "../../lib/intelligence/evidence-needs.ts";
@@ -459,6 +460,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   let orchestration;
   let sourceWindowDisclosure: string | null = null;
   let readOnlyPublication: ReturnType<typeof buildReadOnlyPublication> | null = null;
+  let readOnlyAssessment: ReturnType<typeof assessReadOnlyPublication> | null = null;
   let creditReserved = false;
   let creditFinalState = "not_reserved";
   let providerCallCount = 0;
@@ -549,6 +551,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
            read: createReadOnlyDataAccess(supabase, userId, readTimeZone, historyAccess),
          });
          readOnlyPublication = buildReadOnlyPublication(readResult, userId, profiles[0].name || "your pet");
+          readOnlyAssessment = assessReadOnlyPublication(readResult,readOnlyPublication);
          turnAuthoritativePetIds = [];
          contextUsed = { petName: readOnlyPublication.contextUsed.petName, usedSources: readOnlyPublication.contextUsed.usedSources };
          return {
@@ -1059,6 +1062,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
         && classifyCurrentPetLoss(question) !== "confirmed_current"
         && !isExplicitCareHistorySaveRequest(question),
       intelligenceResult,
+      readOnlyAssessment,
       typedRequirements: typedTaskRequirements(liveContext.askInterpretation?.request),
 
       payloadHash: aiCreditPayloadHash,
@@ -1082,7 +1086,7 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
       userId,
       turnLifecycle,
     }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
-    await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, assessment: completedReadOnly ? ({ outcome: completedReadOnly.limited ? "limited" : "complete" } as never) : getAnswerAssessment(), requestId, response: persistedResponse });
+    await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, assessment: completedReadOnly ? readOnlyAssessment : getAnswerAssessment(), requestId, response: persistedResponse });
     return persistedResponse;
   } catch (error) {
     await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);
@@ -1325,6 +1329,7 @@ async function persistAssistantAnswer({
   handledWithoutAi,
   historyReviewRequired = false,
   intelligenceResult = null,
+  readOnlyAssessment = null,
   typedRequirements = typedTaskRequirements(null),
 
   payloadHash,
@@ -1355,6 +1360,7 @@ async function persistAssistantAnswer({
   deferHighImpactLifecyclePersistence?: boolean;
   historyReviewRequired?: boolean;
   intelligenceResult?: FurviseIntelligenceResult | null;
+  readOnlyAssessment?: ReturnType<typeof assessReadOnlyPublication> | null;
   typedRequirements?: ReturnType<typeof typedTaskRequirements>;
   operationPayloadHash: string;
   operationOwnerToken: string;
@@ -1604,7 +1610,7 @@ async function persistAssistantAnswer({
         && (item.actionIndexes || []).some(index => index >= actions.applicationActions.length));
       const explicitHistoryWrite = typedRequirements.careWriteRequired || reviewedCareWrite;
       const taskExecution = assessTaskExecution({
-        assessment: intelligenceResult?.answerValidation.assessment || null,
+        assessment: readOnlyAssessment || intelligenceResult?.answerValidation.assessment || null,
         completion: reviewedCompletion,
         responseMode: intelligenceResult?.reasoning.responseMode || null,
         actions: actions.applicationActions,

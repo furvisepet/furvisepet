@@ -1,8 +1,10 @@
+import { assessReadOnlyPublication } from "../app/lib/ask-read-only/assessment.ts";
+import { assessTaskExecution } from "../app/lib/intelligence/task-execution-contract.ts";
 import { isExplicitAskMutationCommand } from "../app/lib/ai/turn-classifier.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { runReadOnlyAsk, READ_ONLY_LIMITS, READ_ONLY_TOOLS } from "../app/lib/ask-read-only/core.mjs";
+import { requiresSelectedPetContext, runReadOnlyAsk, READ_ONLY_LIMITS, READ_ONLY_TOOLS } from "../app/lib/ask-read-only/core.mjs";
 
 const pet = { id: "synthetic-qa-pet", ownerId: "owner-test", name: "Furvise QA Synthetic Dog", species: "dog" };
 const source = {
@@ -123,4 +125,111 @@ test("explicit Save and Cancel stay on the existing governed path", () => {
     "Explain why dogs enjoy routine"]) assert.equal(isExplicitAskMutationCommand(q), false, q);
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
   assert.ok(route.includes("!isExplicitAskMutationCommand(question)"));
+});
+const aster = {id:"aster-synthetic-pet",ownerId:pet.ownerId,name:"Aster",species:"dog"};
+const asterProfile = {kind:"profile",id:aster.id,ownerId:aster.ownerId,petId:aster.id,
+  body:JSON.stringify({name:"Aster",species:"dog",age_value:11,age_unit:"years",breed:null}),
+  eventAt:"2026-11-01T12:00:00Z",recordedAt:"2016-01-01T10:00:00Z"};
+const asterNotes = [
+ {kind:"history",id:"aster-note-2018",ownerId:aster.ownerId,petId:aster.id,
+  body:"Synthetic Aster note in August 2018: completed usual walk.",eventAt:"2018-08-11T09:00:00Z",recordedAt:"2018-08-12T10:00:00Z"},
+ {kind:"history",id:"aster-note-2019",ownerId:aster.ownerId,petId:aster.id,
+  body:"Synthetic Aster note in August 2019: owner documented weight.",eventAt:"2019-08-14T09:00:00Z",recordedAt:"2019-08-15T10:00:00Z"},
+];
+test("selected Aster opinion must read saved profile and dated history even when first model selects zero tools", async () => {
+ const reads=[];const stages=[];
+ const result=await runReadOnlyAsk({...base,selectedPetId:aster.id,pets:[aster,{id:"other",ownerId:aster.ownerId,name:"Other",species:"dog"}],
+  question:"what u think of aster"},{
+  provider:async (request,phase)=>{
+   stages.push(phase);
+   if(phase==="read_selection")return {calls:[],text:"I have no information yet"};
+   assert.equal(request.SOURCE_CATALOG.length,3);
+   assert.equal(request.SOURCE_CATALOG.filter(s=>s.kind==="history").length,2);
+   return {answer:"From Aster's saved profile and the 2018-2019 owner notes, there are two documented observations; these do not establish current health or personality.",
+    sources:["s1","s2","s3"],quotes:[],calculations:[],replyType:"answer",
+    presentation:{sourceDates:[],contextRequired:false}};
+  },
+  read:async request=>{
+   reads.push(request);
+   assert.equal(request.pet.id,aster.id);
+   assert.equal(request.pet.ownerId,aster.ownerId);
+   return request.kind==="profile"
+    ?{sources:[asterProfile],total:1,hasMore:false,scopeExhausted:true}
+    :{sources:asterNotes,total:2,hasMore:false,scopeExhausted:true};
+  }
+ });
+ assert.deepEqual(stages,["read_selection","read_answer"]);
+ assert.deepEqual(reads.map(x=>x.kind),["profile","history"]);
+ assert.equal(result.requestedPetContext,true);
+ assert.equal(result.sources.length,3);
+ assert.ok(result.sources.some(s=>s.body.includes("August 2018")));
+ assert.ok(result.sources.some(s=>s.body.includes("August 2019")));
+ const assessed=assessReadOnlyPublication(result,{limited:false,response:{citationProof:"server-issued-proof",readOnlyEvidence:true}});
+ assert.equal(assessed.outcome,"complete");
+ const task=assessTaskExecution({assessment:assessed,completion:[],responseMode:null,actions:[],
+  mutationRequested:false,careWriteRequired:false,careReceipt:{status:"skipped",careEntryIds:[]}});
+ assert.equal(task.taskOutcome,"complete");
+ assert.equal(task.creditDisposition,"complete");
+});
+test("selected Aster impression with no historical notes cannot claim known personality",async()=>{
+ const result=await runReadOnlyAsk({...base,selectedPetId:aster.id,pets:[aster],question:"what u think of aster"},{
+  provider:async (_request,phase)=>phase==="read_selection"?{calls:[],text:""}:
+   {answer:"The profile identifies Aster as a dog, but I found no dated notes from this bounded search and cannot form a history-based impression.",
+    sources:["s1"],quotes:[],calculations:[],replyType:"partial",presentation:{sourceDates:[],contextRequired:false}},
+  read:async request=>request.kind==="profile"?
+   {sources:[asterProfile],total:1,hasMore:false,scopeExhausted:true}:
+   {sources:[],total:0,hasMore:false,scopeExhausted:true}
+ });
+ assert.equal(result.answer.limited,true);
+ assert.equal(assessReadOnlyPublication(result,{limited:true,response:{citationProof:"server-issued-proof",readOnlyEvidence:true}}).outcome,"limited");
+});
+test("selected Aster context rejects cross-owner record before answer model",async()=>{
+ let providerCalls=0;
+ await assert.rejects(runReadOnlyAsk({...base,selectedPetId:aster.id,pets:[aster],question:"what u think of aster"},{
+  provider:async()=>{providerCalls++;return {calls:[],text:""};},
+  read:async request=>request.kind==="profile"?
+   {sources:[{...asterProfile,ownerId:"wrong-owner"}],total:1,hasMore:false,scopeExhausted:true}:
+   {sources:asterNotes,total:2,hasMore:false,scopeExhausted:true}
+ }),/NOT_AUTHORIZED/);
+ assert.equal(providerCalls,1);
+});
+test("Aster follow-up with named subject retains bounded evidence without extra provider stages",async()=>{
+ let calls=0;
+ const result=await runReadOnlyAsk({...base,selectedPetId:aster.id,pets:[aster],
+  dialogue:[{role:"user",text:"Tell me about Aster"},{role:"assistant",text:"We were discussing Aster's dated notes."}],
+  question:"what do you think of Aster now?"},{
+  provider:async (_req,phase)=>{calls++;return phase==="read_selection"?{calls:[],text:""}:
+   {answer:"Aster has documented dated owner observations; current circumstances are not verified.",
+    sources:["s1","s2","s3"],quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}};},
+  read:async request=>request.kind==="profile"?{sources:[asterProfile],total:1,hasMore:false,scopeExhausted:true}:
+   {sources:asterNotes,total:2,hasMore:false,scopeExhausted:true}
+ });
+ assert.equal(calls,2);assert.equal(result.sources.length,3);
+});
+test("no-record history stays limited while casual greeting remains source-free",async()=>{
+ const x=exercise("hi",{calls:[],text:"Hi!"},reply("Hi! How can I help?"),async()=>{throw Error("NO_PET_HISTORY_FOR_GREETING")});
+ const result=await x.run();
+ assert.equal(x.reads(),0);
+ assert.equal(assessReadOnlyPublication(result,{limited:false,response:{readOnlyEvidence:true}}).outcome,"complete");
+});
+test("false absence text about Aster is rejected after authorized sources are available",async()=>{
+ await assert.rejects(runReadOnlyAsk({...base,selectedPetId:aster.id,pets:[aster],question:"what u think of aster"},{
+  provider:async (_req,phase)=>phase==="read_selection"?{calls:[],text:""}:
+   {answer:"I don’t have any info about Aster yet.",sources:[],quotes:[],calculations:[],replyType:"answer",
+    presentation:{sourceDates:[],contextRequired:false}},
+  read:async request=>request.kind==="profile"?{sources:[asterProfile],total:1,hasMore:false,scopeExhausted:true}:
+   {sources:asterNotes,total:2,hasMore:false,scopeExhausted:true}
+ }),/FALSE_ABSENCE/);
+});
+test("unrelated asteroid question never loads Aster's private history",async()=>{
+ assert.equal(requiresSelectedPetContext("what u think of asteroid",aster),false);
+ assert.equal(requiresSelectedPetContext("what u think of aster",aster),true);
+ const result=await runReadOnlyAsk({...base,selectedPetId:aster.id,pets:[aster],question:"what u think of asteroid"},{
+  provider:async(_request,phase)=>phase==="read_selection"?{calls:[],text:""}:{
+   answer:"An asteroid is a small Solar System body.",sources:[],quotes:[],calculations:[],replyType:"answer",
+   presentation:{sourceDates:[],contextRequired:false}},
+  read:async()=>{throw new Error("UNRELATED_HISTORY_ACCESS");}
+ });
+ assert.equal(result.sources.length,0);
+ assert.equal(result.requestedPetContext,false);
 });

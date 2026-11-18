@@ -15,7 +15,14 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  if(!isReadOnlyResult(result))throw new Error("ASK_READ_RESULT_INVALID");
  const reviewed=result as {answer:{answer:string;replyType:"answer"|"clarification"|"refusal"|"partial";limited:boolean;clinicalUrgency?:"routine"|"urgent";presentation?:{contextRequired:boolean;sourceDates:Array<{kind:string;eventAt:string;recordedAt:string;pet:string|null}>};quotes:Array<{quote:string}>;calculations:Array<{text:string}>};sources:Array<{kind:string}>};
  const body=reviewed.answer;
- const coverageMessages=readCoverageMessages((result as {coverage?:unknown[]}).coverage);
+ const coverageRows=(result as {coverage?:Array<{scope?:{kind?:string};unmet?:string[];hasMore?:boolean;hasPrevious?:boolean;truncated?:boolean;inspected?:number;returned?:number;queryScopeExhausted?:boolean}>}).coverage??[];
+ const coverageMessages=readCoverageMessages(coverageRows);
+ const smallLatest=(result as {queryShape?:string}).queryShape==="latest_saved_note"&&coverageRows.length===1
+  &&coverageRows[0].scope?.kind==="history"&&coverageRows[0].unmet?.length===0
+  &&coverageRows[0].inspected===1&&coverageRows[0].returned===1&&coverageRows[0].queryScopeExhausted===true
+  &&!coverageRows[0].hasMore&&!coverageRows[0].hasPrevious&&!coverageRows[0].truncated;
+ if(smallLatest&&coverageMessages.length===1)coverageMessages[0]=
+  "Checked 1 saved-note candidate for this query. This does not establish all related history was found.";
  const dialogue=(result as {dialogueCoverage?:{partial?:boolean;omittedKnownMessages?:number;truncatedMessages?:number}}).dialogueCoverage;
  const contextMessages=dialogue?.partial===true&&body.presentation?.contextRequired!==false
   ?[dialogue.omittedKnownMessages||dialogue.truncatedMessages
@@ -37,8 +44,14 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  // A removed execution claim must leave a truthful capability explanation,
  // even when an unrelated joke or general answer survives the filter.
  const boundary="I can read saved information, but I can’t make changes or open pages through Ask.";
- const checkedSummary=stateRejected
+ let checkedSummary=stateRejected
   ?boundary+(checked==="I can help with that."?"":" "+checked):checked;
+ // Only complete a model's empty date sentence using the one verified event date.
+ const dateSource=body.presentation?.sourceDates?.length===1&&body.quotes.length===1
+  ?body.presentation.sourceDates[0]:null;
+ const verifiedDate=dateSource?.eventAt.slice(0,10)??null;
+ if(verifiedDate&&/^\d{4}-\d{2}-\d{2}$/.test(verifiedDate))
+  checkedSummary=checkedSummary.replace(/(The latest saved journal note I found is dated)\./i,"$1 "+verifiedDate+".");
  // These values are server-verified result fields, not model prose claiming a write.
  const dateDetails=(body.presentation?.sourceDates??[]).filter(source=>!(checkedSummary.includes(source.eventAt.slice(0,10))&&checkedSummary.includes(source.recordedAt.slice(0,10))));
  const verifiedDetails=[...dateDetails.map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+source.eventAt+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+source.recordedAt+"."),...body.calculations.map(calculation=>calculation.text)];
