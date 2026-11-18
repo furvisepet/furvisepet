@@ -48,3 +48,43 @@ test("simple greeting stays unburdened by search coverage",async()=>{
  assert.equal(pub.response.sections.some(section=>section.heading==="Search coverage"),false);
  assert.deepEqual(pub.response.applicationActions,[]);
 });
+test("cross-pet dated weight prose repairs the missing date using only verified cited note",async()=>{
+ const aster={id:"synthetic-aster",ownerId:pet.ownerId,name:"Aster",species:"dog"};
+ const history={kind:"history",id:"synthetic-aster-sept",ownerId:pet.ownerId,petId:aster.id,
+  body:"Aster weighed 30.31 kg. Monthly care check recorded stable appetite, usual routine, and no new ongoing concern.",
+  eventAt:"2026-09-15T12:00:00Z",recordedAt:"2026-09-16T12:00:00Z"};
+ const profile={kind:"profile",id:aster.id,ownerId:pet.ownerId,petId:aster.id,
+  body:"Aster, dog, 11 years.",eventAt:"2026-08-01T12:00:00Z",recordedAt:"2026-08-02T12:00:00Z"};
+ const result=await runReadOnlyAsk({...input("Tell me about Aster from her saved notes."),
+  pets:[pet,aster],selectedPetId:pet.id},{
+  provider:async (_req,phase)=>phase==="read_selection"?{text:"",calls:[]}:
+   {answer:"One dated note says that on Aster weighed 30.31 kg, and the monthly care check recorded stable appetite. I cannot infer current health from this older record.",
+    sources:["s2"],quotes:["s2"],calculations:[],replyType:"answer",presentation:{sourceDates:["s2"],contextRequired:false}},
+  read:async request=>({sources:[request.kind==="profile"?profile:history],total:1,scopeExhausted:true,hasMore:false})
+ });
+ const pub=buildReadOnlyPublication(result,pet.ownerId,pet.name);
+ assert.match(pub.response.summary,/on 2026-09-15, Aster weighed 30\.31 kg/);
+ assert.doesNotMatch(pub.response.summary,/on Aster weighed/);
+ assert.match(pub.response.summary,/recorded date: 2026-09-16/);
+ assert.equal(result.sources.filter(s=>s.kind==="history").length,1);
+ assert.equal(pub.response.readOnlyEvidence,true);
+ assert.ok(pub.response.citationProof);
+ assert.deepEqual(pub.response.applicationActions,[]);
+});
+test("ambiguous cross-pet source never supplies a made-up date to the opening sentence",async()=>{
+ const aster={id:"synthetic-aster",ownerId:pet.ownerId,name:"Aster",species:"dog"};
+ const history={kind:"history",id:"synthetic-aster-other",ownerId:pet.ownerId,petId:aster.id,
+  body:"Aster rested calmly after a short walk.",eventAt:"2026-09-15T12:00:00Z",recordedAt:"2026-09-16T12:00:00Z"};
+ const profile={kind:"profile",id:aster.id,ownerId:pet.ownerId,petId:aster.id,
+  body:"Aster, dog, 11 years.",eventAt:"2026-08-01T12:00:00Z",recordedAt:"2026-08-02T12:00:00Z"};
+ const result=await runReadOnlyAsk({...input("Tell me about Aster from her saved notes."),
+  pets:[pet,aster],selectedPetId:pet.id},{
+  provider:async (_req,phase)=>phase==="read_selection"?{text:"",calls:[]}:
+   {answer:"One dated note says that on Aster weighed 30.31 kg.",sources:["s2"],quotes:["s2"],
+    calculations:[],replyType:"answer",presentation:{sourceDates:["s2"],contextRequired:false}},
+  read:async request=>({sources:[request.kind==="profile"?profile:history],total:1,scopeExhausted:true,hasMore:false})
+ });
+ const pub=buildReadOnlyPublication(result,pet.ownerId,pet.name);
+ assert.match(pub.response.summary,/on Aster weighed/);
+ assert.doesNotMatch(pub.response.summary,/on 2026-09-15, Aster weighed/);
+});

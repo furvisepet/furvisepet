@@ -52,6 +52,15 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  const verifiedDate=dateSource?.eventAt.slice(0,10)??null;
  if(verifiedDate&&/^\d{4}-\d{2}-\d{2}$/.test(verifiedDate))
   checkedSummary=checkedSummary.replace(/(The latest saved journal note I found is dated)\./i,"$1 "+verifiedDate+".");
+ // Repair an omitted date only when the same single verified dated quote
+ // begins with the named pet's weight. Never infer dates from other notes.
+ const quotedPet=dateSource?.kind==="history"&&dateSource.pet;
+ if(verifiedDate&&/^\d{4}-\d{2}-\d{2}$/.test(verifiedDate)&&quotedPet
+   &&body.quotes.length===1&&body.quotes[0].quote.startsWith(quotedPet+" weighed ")){
+  const orphanedDate="on "+quotedPet+" weighed";
+  if(checkedSummary.includes(orphanedDate))
+   checkedSummary=checkedSummary.replace(orphanedDate,"on "+verifiedDate+", "+quotedPet+" weighed");
+ }
  // These values are server-verified result fields, not model prose claiming a write.
  const dateDetails=(body.presentation?.sourceDates??[]).filter(source=>!(checkedSummary.includes(source.eventAt.slice(0,10))&&checkedSummary.includes(source.recordedAt.slice(0,10))));
  const verifiedDetails=[...dateDetails.map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+source.eventAt+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+source.recordedAt+"."),...body.calculations.map(calculation=>calculation.text)];
