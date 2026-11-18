@@ -233,3 +233,59 @@ test("unrelated asteroid question never loads Aster's private history",async()=>
  assert.equal(result.sources.length,0);
  assert.equal(result.requestedPetContext,false);
 });
+const bramble={id:"bramble-synthetic",ownerId:pet.ownerId,name:"Bramble",species:"dog"};
+const brambleProfile={kind:"profile",id:"bramble-profile-synthetic",ownerId:pet.ownerId,petId:bramble.id,
+ body:"Bramble is an owned synthetic test dog.",eventAt:"2026-10-01T12:00:00Z",recordedAt:"2026-10-02T12:00:00Z"};
+const brambleNote={kind:"history",id:"bramble-note-synthetic",ownerId:pet.ownerId,petId:bramble.id,
+ body:"Bramble followed usual evening routine on September 12.",eventAt:"2026-09-12T12:00:00Z",recordedAt:"2026-09-13T12:00:00Z"};
+test("named other owned pet is hydrated even when Aster is selected and Mini selects zero tools",async()=>{
+ let modelCalls=0;const reads=[];
+ const result=await runReadOnlyAsk({...base,selectedPetId:aster.id,pets:[aster,bramble],question:"what u think of bramble"},{
+  provider:async(request,phase)=>{
+   modelCalls++;
+   if(phase==="read_selection")return {calls:[],text:"I don't have any information about Bramble."};
+   assert.equal(request.SOURCE_CATALOG.length,2);
+   assert.deepEqual(request.SOURCE_CATALOG.map(x=>x.pet),["Bramble","Bramble"]);
+   return {answer:"Bramble has a saved September 12 routine observation, but no current behavior can be inferred.",
+    sources:["s1","s2"],quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}};
+  },
+  read:async req=>{
+   reads.push({pet:req.pet.id,kind:req.kind});
+   assert.equal(req.pet.id,bramble.id);assert.equal(req.pet.ownerId,pet.ownerId);
+   return {sources:req.kind==="profile"?[brambleProfile]:[brambleNote],total:1,hasMore:false,scopeExhausted:true};
+  }
+ });
+ assert.equal(modelCalls,2);
+ assert.deepEqual(reads,[{pet:bramble.id,kind:"profile"},{pet:bramble.id,kind:"history"}]);
+ assert.equal(result.sources.length,2);
+ assert.ok(result.sources.every(source=>source.petName==="Bramble"));
+ assert.equal(result.requestedPetContext,true);
+});
+test("named unowned pet never triggers an unauthorized profile or journal read",async()=>{
+ const unknown={...bramble,ownerId:"different-owner"};
+ let reads=0;
+ const result=await runReadOnlyAsk({...base,selectedPetId:aster.id,pets:[aster,unknown],question:"what u think of bramble"},{
+  provider:async(_request,phase)=>phase==="read_selection"?{calls:[],text:""}:
+   {answer:"I do not have authorized saved evidence about that pet.",sources:[],quotes:[],calculations:[],replyType:"partial",presentation:{sourceDates:[],contextRequired:false}},
+  read:async()=>{reads++;throw Error("UNOWNED_PET_READ");}
+ });
+ assert.equal(reads,0);assert.equal(result.requestedPetContext,false);assert.deepEqual(result.sources,[]);
+ assert.equal(result.answer.limited,true);
+});
+test("named other pet rejects a mismatched Aster source before a second provider call",async()=>{
+ let providerCalls=0;
+ await assert.rejects(runReadOnlyAsk({...base,selectedPetId:aster.id,pets:[aster,bramble],question:"what u think of bramble"},{
+  provider:async()=>{providerCalls++;return {calls:[],text:""};},
+  read:async req=>({sources:req.kind==="profile"?[{...brambleProfile,petId:aster.id}]:[brambleNote],total:1,scopeExhausted:true,hasMore:false})
+ }),/NOT_AUTHORIZED/);
+ assert.equal(providerCalls,1);
+});
+test("selected Aster greeting remains source-free with additional owned pets",async()=>{
+ let reads=0;
+ const result=await runReadOnlyAsk({...base,selectedPetId:aster.id,pets:[aster,bramble],question:"hi"},{
+  provider:async(_req,phase)=>phase==="read_selection"?{calls:[],text:""}:
+   {answer:"Hi! How can I help?",sources:[],quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}},
+  read:async()=>{reads++;throw Error("HISTORY_READ_FOR_GREETING");}
+ });
+ assert.equal(reads,0);assert.equal(result.requestedPetContext,false);assert.equal(result.providerCallCount,2);
+});

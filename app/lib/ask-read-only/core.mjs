@@ -248,8 +248,8 @@ export async function runReadOnlyAsk(input,deps) {
  const pets=input.pets.filter(p=>p.ownerId===input.ownerId).map((p,i)=>({...p,handle:"p"+(i+1)}));
  if(!pets.some(p=>p.id===input.selectedPetId))fail("ASK_READ_PET_NOT_AUTHORIZED");
   const references=restoreReadReferences(input.readReferences,pets);
-  const selectedPet=pets.find(pet=>pet.id===input.selectedPetId);
-  const selectedPetContextRequired=requiresSelectedPetContext(input.question,selectedPet);
+  const namedContextPet=pets.find(pet=>requiresSelectedPetContext(input.question,pet))??null;
+  const selectedPetContextRequired=!!namedContextPet;
  const recentDialogue=input.dialogue.slice(-12);
  const dialogue=recentDialogue.map(t=>({role:t.role==="user"?"user":"assistant",text:String(t.text).slice(0,2000)}));
  while(JSON.stringify(dialogue).length>READ_ONLY_LIMITS.dialogueCharacters)dialogue.shift();
@@ -299,11 +299,11 @@ export async function runReadOnlyAsk(input,deps) {
   }
   if(selectedPetContextRequired&&!emergency){
    const required=[
-    {name:"read_pet_profile",args:{pet:selectedPet.handle}},
-    {name:"search_saved_records",args:{pet:selectedPet.handle,from:null,to:null,query:null,offset:0,goal:"relevant_records",orderBy:"event",order:"desc"}}
+    {name:"read_pet_profile",args:{pet:namedContextPet.handle}},
+    {name:"search_saved_records",args:{pet:namedContextPet.handle,from:null,to:null,query:null,offset:0,goal:"relevant_records",orderBy:"event",order:"desc"}}
    ];
    for(const mandatory of required){
-    if(!candidates.some(call=>call.name===mandatory.name&&call.request.pet.id===selectedPet.id)){
+    if(!candidates.some(call=>call.name===mandatory.name&&call.request.pet.id===namedContextPet.id)){
      candidates.push({id:"owner-context-"+mandatory.name,name:mandatory.name,reference:null,
        request:bindReadTool(mandatory.name,mandatory.args,pets,references),ownerContext:true});
     }
