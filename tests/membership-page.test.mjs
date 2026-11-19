@@ -78,8 +78,8 @@ test("localized billing presentation shows exactly one supported market price", 
     serverFallback: "CA",
     trustedPlatformCountry: "US",
   });
-  assert.deepEqual(ca, { currency: "CAD", market: "CA", priceLabel: "CA$8.48/month", source: "platform_geo" });
-  assert.deepEqual(us, { currency: "USD", market: "US", priceLabel: "US$8.48/month", source: "platform_geo" });
+  assert.deepEqual(ca, { currency: "CAD", market: "CA", priceLabel: "CA$6.49/month", source: "platform_geo" });
+  assert.deepEqual(us, { currency: "USD", market: "US", priceLabel: "US$6.49/month", source: "platform_geo" });
   assert.doesNotMatch(ca.priceLabel, /US\$/);
   assert.doesNotMatch(us.priceLabel, /CA\$/);
   assert.doesNotMatch(page, /CA\$8\.48|US\$8\.48/);
@@ -97,8 +97,8 @@ test("active Plus projected currency takes precedence over current location", ()
     serverFallback: "CA",
     trustedPlatformCountry: "CA",
   });
-  assert.deepEqual(cadTraveler, { currency: "CAD", market: "CA", priceLabel: "CA$8.48/month", source: "stripe_projection" });
-  assert.deepEqual(usdTraveler, { currency: "USD", market: "US", priceLabel: "US$8.48/month", source: "stripe_projection" });
+  assert.deepEqual(cadTraveler, { currency: "CAD", market: "CA", priceLabel: "CA$6.49/month", source: "stripe_projection" });
+  assert.deepEqual(usdTraveler, { currency: "USD", market: "US", priceLabel: "US$6.49/month", source: "stripe_projection" });
 
   const route = read("app/api/account/entitlements/route.ts");
   const admin = read("app/lib/billing/billing-admin.ts");

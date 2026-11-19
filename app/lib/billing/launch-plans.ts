@@ -75,5 +75,5 @@ export function isPlusCheckoutPrice(price: {
 }) {
   return price.active === true && price.type === "recurring"
     && price.recurring?.interval === "month" && price.recurring.interval_count === 1
-    && price.currency_options?.cad?.unit_amount === 848 && price.currency_options?.usd?.unit_amount === 848;
+    && price.currency_options?.cad?.unit_amount === 649 && price.currency_options?.usd?.unit_amount === 649;
 }

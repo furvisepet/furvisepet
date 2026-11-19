@@ -3,7 +3,7 @@ export type BillingDisplayMarket = "CA" | "US";
 export type BillingPresentation = {
   currency: "CAD" | "USD";
   market: BillingDisplayMarket;
-  priceLabel: "CA$8.48/month" | "US$8.48/month";
+  priceLabel: "CA$6.49/month" | "US$6.49/month";
   source: "platform_geo" | "server_default" | "stripe_projection";
 };
 
@@ -21,8 +21,8 @@ export function resolveBillingPresentationForMarket({
   const market = projectedMarket || platformMarket || normalizeBillingMarket(serverFallback) || "US";
   const source = projectedMarket ? "stripe_projection" : platformMarket ? "platform_geo" : "server_default";
   return market === "CA"
-    ? { currency: "CAD", market, priceLabel: "CA$8.48/month", source }
-    : { currency: "USD", market, priceLabel: "US$8.48/month", source };
+    ? { currency: "CAD", market, priceLabel: "CA$6.49/month", source }
+    : { currency: "USD", market, priceLabel: "US$6.49/month", source };
 }
 
 function normalizeBillingMarket(value?: string | null): BillingDisplayMarket | null {
