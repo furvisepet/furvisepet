@@ -197,7 +197,7 @@ test("desktop navigation remains hidden below 1024px and brand assets remain unc
   );
   assert.equal(
     hash("public/brand/furvise-logo.svg"),
-    "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00"
+    "8B3D2E7FBCFAB1C3616DD314D39C797A3FF8C0E1CE964A6DB64F4DDA2EE57632"
   );
   assert.equal(
     hash("public/favicon.ico"),

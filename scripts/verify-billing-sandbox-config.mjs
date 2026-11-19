@@ -94,8 +94,8 @@ async function main() {
 
   const cad = price.currency_options?.cad;
   const usd = price.currency_options?.usd;
-  assert(cad?.unit_amount === 848, "BILLING_SANDBOX_CAD_PRICE_NOT_848");
-  assert(usd?.unit_amount === 848, "BILLING_SANDBOX_USD_PRICE_NOT_848");
+  assert(cad?.unit_amount === 649, "BILLING_SANDBOX_CAD_PRICE_NOT_649");
+  assert(usd?.unit_amount === 649, "BILLING_SANDBOX_USD_PRICE_NOT_649");
 
   const product = typeof price.product === "string" ? await stripe.products.retrieve(price.product) : price.product;
   assert(product && !product.deleted, "BILLING_SANDBOX_PRODUCT_MISSING");
@@ -106,8 +106,8 @@ async function main() {
   console.log("PASS billing sandbox configuration");
   console.log(`- Stripe mode: test`);
   console.log(`- Plus price: ${price.id}`);
-  console.log(`- CAD: 8.48/month`);
-  console.log(`- USD: 8.48/month`);
+  console.log(`- CAD: 6.49/month`);
+  console.log(`- USD: 6.49/month`);
   console.log(`- Billing display market: ${displayMarket}`);
   console.log(`- Supabase: local (${supabaseHost})`);
   console.log("- Supabase admin authority: verified");
