@@ -9,6 +9,10 @@ const hash = (path) =>
     .update(readFileSync(new URL(`../${path}`, import.meta.url)))
     .digest("hex")
     .toUpperCase();
+// Normalize text line endings before hashing: Git's approved SVG is LF,
+ // while Windows may checkout the same tracked artwork as CRLF.
+const hashNormalizedText = (path) =>
+  createHash("sha256").update(read(path).replace(/\r\n/g, "\n")).digest("hex").toUpperCase();
 const css = read("app/globals.css");
 const header = read("app/components/app-header.tsx");
 const brand = read("app/components/brand-mark.tsx");
@@ -196,8 +200,8 @@ test("desktop navigation remains hidden below 1024px and brand assets remain unc
     "/brand/furvise-logo.svg"
   );
   assert.equal(
-    hash("public/brand/furvise-logo.svg"),
-    "8B3D2E7FBCFAB1C3616DD314D39C797A3FF8C0E1CE964A6DB64F4DDA2EE57632"
+    hashNormalizedText("public/brand/furvise-logo.svg"),
+    "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00"
   );
   assert.equal(
     hash("public/favicon.ico"),
