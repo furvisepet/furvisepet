@@ -84,6 +84,8 @@ test("localized billing presentation shows exactly one supported market price", 
   assert.doesNotMatch(us.priceLabel, /CA\$/);
   assert.doesNotMatch(page, /CA\$8\.48|US\$8\.48/);
   assert.match(page, /membership\.billingPresentation\.priceLabel/);
+  assert.doesNotMatch(page, /Same monthly amount in USD and CAD\. Your checkout currency is shown above\./);
+  assert.match(page, /premium && current \? <p[^>]*>Manage billing to see your current subscription price\.<\/p>/);
 });
 
 test("active Plus projected currency takes precedence over current location", () => {
