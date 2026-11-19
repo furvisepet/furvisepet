@@ -198,7 +198,7 @@ function PlanCard({
         {current && premium ? <span className="rounded-full border border-[color-mix(in_srgb,var(--warm-cream)_45%,transparent)] px-3 py-1 text-xs font-bold uppercase tracking-[0.08em]">Current plan</span> : null}
       </div>
       <p className="app-plan-price mt-7">{premium && current ? "Your Plus membership" : price}</p>
-      {premium ? <p className="mt-2 text-sm leading-6">{current ? "Manage billing to see your current subscription price." : "Same monthly amount in USD and CAD. Your checkout currency is shown above."}</p> : null}
+      {premium && current ? <p className="mt-2 text-sm leading-6">Manage billing to see your current subscription price.</p> : null}
       <p className={`mt-4 min-h-14 leading-7 ${premium ? "text-[color-mix(in_srgb,var(--warm-cream)_78%,transparent)]" : "text-[var(--text-secondary)]"}`}>{value}</p>
 
       {usage ? <UsageSummary premium={premium} usage={usage} /> : null}
