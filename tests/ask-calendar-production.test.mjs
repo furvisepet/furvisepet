@@ -37,3 +37,16 @@ test("collection prose drops whole generated date sentence and retains verified 
  assert.doesNotMatch(result.answer,/2021-07-18T19:00:00/);
  assert.doesNotMatch(result.answer,/-07-18T/);
 });
+test("restrictive model search is replaced by an explicit named-year window",()=>{
+ const selected={...first,taskPlan:[{...task,missing:["which_record"]}],calls:[{id:"model-1",name:"search_saved_records",
+  arguments:JSON.stringify({pet:"p1",from:"2011-01-01",to:"2011-12-31",query:"rabbit food",offset:0})}]};
+ const recovered=recoverBoundedCalendarRead(selected,{question:"Did QA Juniper 20Y switch to rabbit or salmon food in 2011?"},pets);
+ assert.ok(recovered);
+ assert.equal(recovered.first.calls.length,1);
+ const a=JSON.parse(recovered.first.calls[0].arguments);
+ assert.equal(a.query,null);
+ assert.equal(a.from,"2011-01-01");
+ assert.equal(a.to,"2011-12-31");
+ assert.equal(recoverBoundedCalendarRead({...selected,calls:[{...selected.calls[0],arguments:JSON.stringify({pet:"p2"})}]},
+  {question:"Did QA Juniper 20Y switch food in 2011?"},pets),null);
+});

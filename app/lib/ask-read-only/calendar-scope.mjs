@@ -38,13 +38,14 @@ export function recoverBoundedCalendarRead(first,context,pets){
  const tasks=first.taskPlan?.filter(t=>t.needsHistory);
  const taskBound=!!tasks?.length&&tasks.every(t=>t.kind==="saved_content"&&t.reference===null&&t.pets.length===1
   &&t.pets[0]===named[0].handle&&t.missing.every(k=>["which_record","year"].includes(k)))
-  &&safe&&(first.calls.length===0||scopes.length===2&&first.calls.length===1
-   &&first.calls[0].name==="search_saved_records"&&(()=>{try{return JSON.parse(first.calls[0].arguments).pet===named[0].handle;}catch{return false;}})());
+  &&safe&&first.calls.length<=2&&first.calls.every(call=>call.name==="search_saved_records"
+   &&(()=>{try{return JSON.parse(call.arguments).pet===named[0].handle;}catch{return false;}})());
  const legacy=scopes.length===1&&first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"
   &&first.safety.missingContext.length>0&&first.safety.missingContext.every(k=>["pet","date"].includes(k))
   &&(first.historyIntent.pet===null||first.historyIntent.pet===named[0].handle);
  if(!taskBound&&!legacy)return null;
  if(first.calls.some(call=>!["search_saved_records","read_referenced_sources","read_pet_profile"].includes(call.name)))return null;
+ if(first.calls.some(call=>{try{return call.name==="search_saved_records"&&JSON.parse(call.arguments).pet!==named[0].handle;}catch{return true;}}))return null;
  let planned={};try{planned=JSON.parse(first.calls[0]?.arguments??"{}");}catch{return null;}
  const goal=scopes.length===2?"comparison":EVIDENCE_GOALS.includes(planned.goal)?planned.goal:"relevant_records";
  const order=planned.order==="desc"?"desc":"asc",basis=first.historyIntent.timeBasis,event=basis==="event";
