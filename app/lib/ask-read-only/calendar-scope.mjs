@@ -27,7 +27,7 @@ export function explicitCalendarScopes(question){
  return [...new Map(found.map(scope=>[scope.from+"/"+scope.to,scope])).values()];
 }
 export function recoverBoundedCalendarRead(first,context,pets){
- if(!["event","recorded"].includes(first.historyIntent?.timeBasis)||first.calls.length>1)return null;
+ if(!["event","recorded"].includes(first.historyIntent?.timeBasis)||first.calls.length>2)return null;
  const scopes=explicitCalendarScopes(context.question);if(scopes.length<1||scopes.length>2)return null;
  const escaped=name=>name.replace(/[.*+?$^{}()|[\]\\]/g,"\\$&");
  const named=pets.filter(pet=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(pet.name)+"(?![\\p{L}\\p{N}])","iu").test(context.question));
@@ -40,7 +40,7 @@ export function recoverBoundedCalendarRead(first,context,pets){
   &&t.pets[0]===named[0].handle&&t.missing.every(k=>["which_record","year"].includes(k)))
   &&safe&&first.calls.length<=2&&first.calls.every(call=>call.name==="search_saved_records"
    &&(()=>{try{return JSON.parse(call.arguments).pet===named[0].handle;}catch{return false;}})());
- const legacy=scopes.length===1&&first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"
+ const legacy=first.calls.length<=1&&scopes.length===1&&first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"
   &&first.safety.missingContext.length>0&&first.safety.missingContext.every(k=>["pet","date"].includes(k))
   &&(first.historyIntent.pet===null||first.historyIntent.pet===named[0].handle);
  if(!taskBound&&!legacy)return null;

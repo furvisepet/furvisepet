@@ -50,3 +50,11 @@ test("restrictive model search is replaced by an explicit named-year window",()=
  assert.equal(recoverBoundedCalendarRead({...selected,calls:[{...selected.calls[0],arguments:JSON.stringify({pet:"p2"})}]},
   {question:"Did QA Juniper 20Y switch food in 2011?"},pets),null);
 });
+test("two restrictive model calls recover as two bounded year reads",()=>{
+ const calls=["2016","2026"].map((year,index)=>({id:"model-"+index,name:"search_saved_records",
+  arguments:JSON.stringify({pet:"p1",from:year+"-01-01",to:year+"-12-31",query:"toy"})}));
+ const recovered=recoverBoundedCalendarRead({...first,calls},{question:"What toy for QA Juniper 20Y in 2016 and what weight in 2026?"},pets);
+ assert.ok(recovered);
+ assert.equal(recovered.first.calls.length,2);
+ assert.deepEqual(recovered.first.calls.map(c=>JSON.parse(c.arguments).query),[null,null]);
+});
