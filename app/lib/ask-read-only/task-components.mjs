@@ -183,8 +183,40 @@ function uniqueWindowFacts(task,sources,coverage){
  return rows.map((row,index)=>({source:row.handle,excerpt:excerpts[index]}));
 }
 const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
-export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],requestedScopes=[]){
+// A sole current-profile task can be complete when every explicit profile field
+// in the question is present in one admitted profile snapshot and its answer.
+// This repairs a model completion label without guessing missing fields.
+function completeProfileFields(question,answer,task,sources,coverage){
+ if(task.kind!=="saved_content"||task.recordMode!=="single"||task.status!=="partial"
+   ||task.reason!=="not_answered"||task.missing.length||!["answer","partial"].includes(answer.replyType)
+   ||task.sources.length!==1||!answer.sources?.includes(task.sources[0]))return false;
+ const row=sources.find(s=>s.handle===task.sources[0]&&s.kind==="profile");
+ if(!row||coverage.some(r=>r.scope?.kind==="profile"&&r.scope?.pet===row.petName
+   &&(r.unmet?.length||r.hasMore||r.truncated||r.omitted)))return false;
+ let profile;try{profile=JSON.parse(row.body);}catch{return false;}
+ const requested=[
+  [/\bage\b/i,"age_value","age_unit"],
+  [/\b(?:food|diet|feeding)\b/i,"current_food"],
+  [/\bbreed\b/i,"breed"],
+  [/\bspecies\b/i,"species"],
+  [/\bsex\b/i,"sex"],
+  [/\bweight\b/i,"weight_value","weight_unit"]
+ ].filter(([pattern])=>pattern.test(question));
+ if(!requested.length)return false;
+ const normalized=String(answer.answer).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu," ").trim();
+ return requested.every(([,key,unit])=>{
+  const value=profile[key];if(value===null||value===undefined||value==="")return false;
+  const phrase=String(value).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu," ").trim();
+  if(!phrase||!normalized.includes(phrase))return false;
+  if(!unit)return true;
+  const unitValue=String(profile[unit]??"").toLocaleLowerCase().replace(/s$/,"");
+  return !!unitValue&&normalized.includes(unitValue);
+ });
+}
+export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],requestedScopes=[],question=""){
  if(!tasks)return answer;
+ if(!policy?.active&&tasks.length===1&&completeProfileFields(question,answer,tasks[0],sources,coverage))
+  tasks=[{...tasks[0],status:"complete",reason:"none"}];
  const firstBrief=tasks.find(t=>t.kind==="vet_brief")?.id;
  tasks=tasks.map(t=>{
   if(t.kind==="workflow"&&t.workflow==="other")return {...t,status:"unresolved",reason:"not_supported"};

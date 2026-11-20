@@ -483,7 +483,7 @@ export async function runReadOnlyAsk(input,deps) {
    if(selectedCalls.length<first.calls.length){answer.limited=true;if(answer.replyType==="answer")answer.replyType="partial";}
    deps.onAnswerBoundary?.({outcome:"clinical_reviewed",...reviewed.summary});
   }
-  answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results,context.explicitCalendarScopes);
+  answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results,context.explicitCalendarScopes,context.question);
   const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow,input.question);
   if(reviewed.workflow?.intent!=="none"&&reviewed.workflow)deps.onAnswerBoundary?.({outcome:"workflow_selected",firstIntent:first.workflowIntent??"none",finalIntent:reviewed.workflow.intent,appended:appendWorkflow,readCount:bound.length});
