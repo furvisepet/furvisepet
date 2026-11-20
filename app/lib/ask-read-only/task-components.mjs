@@ -218,8 +218,8 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
      ||new Set(tasks.flatMap(t=>t.sources)).size<windows.length
      ||tasks.some(t=>t.includeSourceDates)&&rows.some(row=>row&&!answer.answer.includes(row.eventAt.slice(0,10)));
    if(clean&&failed){
-     const facts=rows.map(row=>row.petName+" - event "+row.eventAt.slice(0,10)+": “"+row.body.trim()+"”");
-     const verifiedSourceText="Here’s what I found in the saved notes:\n"+facts.join("\n");
+     const facts=rows.map(row=>"The saved note for "+row.petName+" about "+row.eventAt.slice(0,10)+" says: "+String.fromCharCode(0x201c)+row.body.trim()+String.fromCharCode(0x201d));
+     const verifiedSourceText=facts.join("\n");
      return {...answer,answer:verifiedSourceText,verifiedSourceText,
        sources:[...new Set([...answer.sources,...rows.map(row=>row.handle)])],
        quotes:[...new Map([...answer.quotes,...rows.map(row=>({source:row.handle,quote:row.body}))].map(q=>[q.source,q])).values()],

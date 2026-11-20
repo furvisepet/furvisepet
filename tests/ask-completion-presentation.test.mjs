@@ -33,3 +33,9 @@ test("a limited clinical answer without saved-record evidence cannot assert hist
  assert.equal(parsed.completionNotice,"I could not reliably complete every part of this answer.");
  assert.doesNotMatch(parsed.completionNotice,/saved history|records found|notes found/i);
 });
+
+test("a clarification does not show an unrelated completion failure",()=>{
+ const parsed=parseAskConversationResponse({...base,answerType:"clarification",summary:"Which pet do you mean?",turn:{finalStage:"COMPLETED",answerOutcome:"limited"}});
+ assert.equal(parsed.completionNotice,undefined);
+ assert.equal(parsed.summary,"Which pet do you mean?");
+});
