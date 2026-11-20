@@ -318,3 +318,19 @@ test("partial history says the limit once without internal verification phrasing
  assert.doesNotMatch(result.answer,/source bodies|generated date-specific|Saved history:/);
  assert.equal(result.taskCompletion[0].status,"partial");
 });
+test("one task's partial caveat does not hide another task's source limit",()=>{
+ const source={handle:"s1",kind:"history",petName:"QA Willow 20Y",eventAt:"2021-07-18T12:00:00Z",
+  recordedAt:"2026-11-19T12:00:00Z",body:"Willow played indoors."};
+ const tasks=[
+  {id:"t1",kind:"general_guidance",needsHistory:false,recordMode:"none",status:"complete",reason:"none",
+   missing:[],componentIndexes:[0],sources:[],historyFacts:[],ownerFacts:[]},
+  {id:"t2",kind:"saved_content",needsHistory:true,recordMode:"collection",status:"complete",reason:"none",
+   missing:[],componentIndexes:[1],sources:["s1"],historyFacts:[],ownerFacts:[],includeSourceDates:false}
+ ];
+ const answer={answer:"",validatedParts:[{index:0,text:"This general guidance is partial."},
+  {index:1,text:"Willow's notes mention indoor play."}],presentation:{sourceDates:[]},quotes:[]};
+ const coverage=[{scope:{kind:"history",pet:source.petName,goal:"complete_set"},sources:[{source:"s1"}],
+  omitted:1,unmet:["evidence_omitted"],hasMore:false,hasPrevious:false,truncated:true}];
+ const result=renderTaskCompletion(answer,tasks,[source],null,coverage);
+ assert.match(result.answer,/Saved history: I could review only part of the saved history/);
+});

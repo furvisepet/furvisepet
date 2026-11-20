@@ -285,8 +285,10 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
   const retainedSubset=task.reason==="source_omitted"&&relevant.some(r=>r.unmet?.includes("prior_source_selection_omitted"))
    &&!relevant.some(r=>r.omitted>0||r.hasMore||r.hasPrevious||r.truncated);
   const detail=retainedSubset?"This part uses only the bounded source selection retained from an earlier result; the other earlier bodies were not re-read for this answer.":reasonsText[task.reason];
+  const taskProse=tasks.length===1?text:(answer.validatedParts??[])
+   .filter(part=>task.componentIndexes.includes(part.index)).map(part=>part.text).join(" ");
   const alreadyExplained=task.reason==="source_omitted"
-   &&/\b(?:partial|incomplete|only (?:the|a|some) (?:returned|available|reviewed)|can['’]?t (?:claim|confirm) (?:the )?(?:full|entire|every))\b/i.test(text);
+   &&/\b(?:partial|incomplete|only (?:the|a|some) (?:returned|available|reviewed)|can['’]?t (?:claim|confirm) (?:the )?(?:full|entire|every))\b/i.test(taskProse);
   if(detail&&!alreadyExplained&&!text.includes(detail))
    text+="\n\n"+(tasks.length>1?labels[task.kind]+": ":"")+detail;
  }
