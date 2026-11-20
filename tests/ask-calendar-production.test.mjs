@@ -399,6 +399,8 @@ test("verified profile fields reconcile a false partial completion without hidin
  assert.doesNotMatch(complete.answer,/couldn't complete/);
  const mislabeled=renderTaskCompletion({...answer,replyType:"partial"},[task],[source],null,[],[],"What does Echo's profile list for her diet and age?");
  assert.equal(mislabeled.replyType,"answer");
+ const limited=renderTaskCompletion({...answer,validatedParts:[{index:0,kind:"saved",text:answer.answer},{index:1,kind:"limitation",text:"I cannot verify more."}]},[task],[source],null,[],[],"What does Echo's profile list for her diet and age?");
+ assert.equal(limited.taskCompletion[0].status,"partial");
  const missing=renderTaskCompletion({...answer,answer:"Echo is 10 years old.",validatedParts:[{index:0,text:"Echo is 10 years old."}]},[task],[source],null,[],[],"What does Echo's profile list for her diet and age?");
  assert.equal(missing.taskCompletion[0].status,"partial");
  assert.match(missing.answer,/couldn't complete/);

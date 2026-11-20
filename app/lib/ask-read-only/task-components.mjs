@@ -189,7 +189,9 @@ const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the ev
 function completeProfileFields(question,answer,task,sources,coverage){
  if(task.kind!=="saved_content"||task.recordMode!=="single"||task.status!=="partial"
    ||task.reason!=="not_answered"||task.missing.length||!["answer","partial"].includes(answer.replyType)
-   ||task.sources.length!==1||!answer.sources?.includes(task.sources[0]))return false;
+   ||task.sources.length!==1||!answer.sources?.includes(task.sources[0])
+   ||answer.validatedParts?.some(part=>part.kind==="limitation"||part.kind==="emergency")
+   ||/\b(?:couldn.t|cannot|can.t|unverified|unknown|not available|not listed)\b/i.test(answer.answer))return false;
  const row=sources.find(s=>s.handle===task.sources[0]&&s.kind==="profile");
  if(!row||coverage.some(r=>r.scope?.kind==="profile"&&r.scope?.pet===row.petName
    &&(r.unmet?.length||r.hasMore||r.truncated||r.omitted)))return false;
