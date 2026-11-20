@@ -61,3 +61,11 @@ test("reasoning-only legacy envelope cannot manufacture completion",()=>{
   assert.equal(interpret({output_text:text,output:[{type:"reasoning",status}]},()=>assert.fail("must not parse")).status,"invalid");
  }
 });
+
+test("safe direct branch diagnostic identifies a rejected provider branch without text",()=>{
+  const privateText="OWNER_PRIVATE_NOTE";
+  const result=interpret({status:"completed",output_text:privateText},()=>{throw new Error("ASK_DIRECT_BRANCH_SCHEMA",{cause:{field:privateText}});});
+  assert.equal(result.status,"invalid");
+  assert.equal(result.validationReason,"ASK_DIRECT_BRANCH_SCHEMA");
+  assert.ok(!JSON.stringify({validationReason:result.validationReason,errorMessage:result.errorMessage}).includes(privateText));
+});
