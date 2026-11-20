@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {explicitCalendarScopes,explicitRequestedTimeBasis,recoverBoundedCalendarRead,clarifyUnboundHistoryPronoun} from "../app/lib/ask-read-only/calendar-scope.mjs";
+import {explicitCalendarScopes,explicitRequestedTimeBasis,recoverBoundedCalendarRead,clarifyUnboundHistoryPronoun,namedPetsForHistory} from "../app/lib/ask-read-only/calendar-scope.mjs";
 import {renderTaskCompletion} from "../app/lib/ask-read-only/task-components.mjs";
 
 const pets=[{handle:"p1",name:"QA Juniper 20Y"},{handle:"p2",name:"QA Willow 20Y"}];
@@ -333,4 +333,17 @@ test("one task's partial caveat does not hide another task's source limit",()=>{
   omitted:1,unmet:["evidence_omitted"],hasMore:false,hasPrevious:false,truncated:true}];
  const result=renderTaskCompletion(answer,tasks,[source],null,coverage);
  assert.match(result.answer,/Saved history: I could review only part of the saved history/);
+});
+
+test("a unique familiar pet name resolves historical years without guessing a shared name",()=>{
+ assert.deepEqual(namedPetsForHistory("Compare Willow in 2006 and 2021",pets).map(p=>p.handle),["p2"]);
+ assert.deepEqual(namedPetsForHistory("Compare QA Willow 20Y in 2006 and 2021",pets).map(p=>p.handle),["p2"]);
+ const overlapping=[...pets,{handle:"p3",name:"Willow Rose"}];
+ assert.deepEqual(namedPetsForHistory("What happened to Willow in 2006?",overlapping),[]);
+ const recovered=recoverBoundedCalendarRead({...first,taskPlan:[{...task,pets:["p2"],missing:["which_record"]}]},
+  {question:"How do Willow's arrival note in 2006 and trip note in 2021 differ?"},pets);
+ assert.ok(recovered);
+ assert.deepEqual(recovered.first.calls.map(call=>JSON.parse(call.arguments).from),["2006-01-01","2021-01-01"]);
+ assert.deepEqual(recovered.first.taskPlan[0].missing,[]);
+ assert.equal(recoverBoundedCalendarRead(first,{question:"Compare Willow and Juniper in 2006"},pets),null);
 });
