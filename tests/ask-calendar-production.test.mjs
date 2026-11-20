@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {explicitCalendarScopes,explicitRequestedTimeBasis,recoverBoundedCalendarRead} from "../app/lib/ask-read-only/calendar-scope.mjs";
+import {explicitCalendarScopes,explicitRequestedTimeBasis,recoverBoundedCalendarRead,clarifyUnboundHistoryPronoun} from "../app/lib/ask-read-only/calendar-scope.mjs";
 import {renderTaskCompletion} from "../app/lib/ask-read-only/task-components.mjs";
 
 const pets=[{handle:"p1",name:"QA Juniper 20Y"},{handle:"p2",name:"QA Willow 20Y"}];
@@ -226,4 +226,30 @@ test("publication-changing historical wording uses the verified original",()=>{
  const result=renderTaskCompletion(answer,[task],[source],null,coverage,[{from:"2011-05-01",to:"2011-05-31"}]);
  assert.match(result.answer,/event 2011-05-14/);
  assert.equal(result.verifiedSourceText,result.answer);
+});
+
+test("new conversation asks which pet an unbound pronoun means",()=>{
+ const question="In 2015, what happened to her?";
+ const selected={...first,text:"A saved record was not found.",
+  taskPlan:[{...task,pets:["p1"],missing:[]}],
+  calls:[{id:"wrong-pet",name:"search_saved_records",arguments:JSON.stringify({pet:"p1"})}]};
+ const context={question,dialogue:[],references:[]};
+ const guarded=clarifyUnboundHistoryPronoun(selected,context,pets);
+ assert.deepEqual(guarded.calls,[]);
+ assert.deepEqual(guarded.taskPlan[0].pets,[]);
+ assert.deepEqual(guarded.taskPlan[0].missing,["pet"]);
+ assert.equal(guarded.text,"");
+ assert.equal(clarifyUnboundHistoryPronoun(selected,{...context,question:"What happened to QA Juniper 20Y in 2015? Here is her note."},pets),selected);
+ assert.equal(clarifyUnboundHistoryPronoun(selected,{...context,dialogue:[{role:"user",text:"I mean Juniper."}]},pets),selected);
+});
+
+test("unbound history pronoun publishes a pointed pet clarification",()=>{
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"single",pets:[],
+  status:"unresolved",reason:"source_unavailable",missing:["pet"],componentIndexes:[],
+  sources:[],historyFacts:[],ownerFacts:[],includeSourceDates:false};
+ const answer={answer:"No verified source was found.",replyType:"partial",sources:[],quotes:[],
+  presentation:{sourceDates:[],contextRequired:false}};
+ const result=renderTaskCompletion(answer,[task],[],null,[]);
+ assert.equal(result.answer,"Which pet should I use?");
+ assert.equal(result.replyType,"clarification");
 });
