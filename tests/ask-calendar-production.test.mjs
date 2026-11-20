@@ -188,7 +188,9 @@ test("saved event and day phrasing recovers an explicitly named year",()=>{
  assert.ok(recovered);
  assert.deepEqual(recovered.first.taskPlan[0].missing,["which_record"]);
  assert.equal(JSON.parse(recovered.first.calls[0].arguments).from,"2026-01-01");
- assert.equal(recoverBoundedCalendarRead(reconciled,{question:"What day was QA Juniper 20Y’s 2026 note saved?"},pets),null);
+ const saved=recoverBoundedCalendarRead(reconciled,{question:"What day was QA Juniper 20Y’s 2026 note saved?"},pets);
+ assert.ok(saved);
+ assert.equal(JSON.parse(saved.first.calls[0].arguments).recordedFrom,"2026-01-01");
 });
 test("two requested years do not require choosing one saved result",()=>{
  const sources=[
@@ -270,4 +272,65 @@ test("unbound history pronoun publishes a pointed pet clarification",()=>{
  const result=renderTaskCompletion(answer,[task],[],null,[]);
  assert.equal(result.answer,"Which pet should I use?");
  assert.equal(result.replyType,"clarification");
+});
+
+test("historical comparison defaults to event years despite a recorded-axis draft",()=>{
+ const selected={...first,historyIntent:{...first.historyIntent,timeBasis:"recorded"},
+  safety:{...safety,missingContext:["date_meaning"]},
+  taskPlan:[{...task,pets:["p2"],recordMode:"collection",missing:["date_meaning"]}]};
+ const recovered=recoverBoundedCalendarRead(selected,
+  {question:"Compare what QA Willow 20Y's notes say in 2006 and 2021. What changed?"},pets);
+ assert.ok(recovered);
+ assert.equal(recovered.first.historyIntent.timeBasis,"event");
+ assert.deepEqual(recovered.first.calls.map(call=>{
+  const args=JSON.parse(call.arguments);return [args.from,args.to,args.recordedFrom,args.orderBy];
+ }),[["2006-01-01","2006-12-31",null,"event"],["2021-01-01","2021-12-31",null,"event"]]);
+});
+test("explicit save-time questions retain recorded bounds",()=>{
+ const selected={...first,historyIntent:{...first.historyIntent,timeBasis:"event"}};
+ for(const question of ["What was saved for QA Juniper 20Y in 2011?","Which notes did I save in 2011 for QA Juniper 20Y?"]){
+  const recovered=recoverBoundedCalendarRead(selected,{question},pets);
+  assert.ok(recovered);
+  const args=JSON.parse(recovered.first.calls[0].arguments);
+  assert.equal(args.from,null);assert.equal(args.recordedFrom,"2011-01-01");
+  assert.equal(args.orderBy,"recorded");
+ }
+});
+test("a saved note from a historical year does not mean it was saved then",()=>{
+ const selected={...first,historyIntent:{...first.historyIntent,timeBasis:"recorded"}};
+ const recovered=recoverBoundedCalendarRead(selected,
+  {question:"What did QA Juniper 20Y's saved note from 2006 say?"},pets);
+ assert.ok(recovered);
+ const args=JSON.parse(recovered.first.calls[0].arguments);
+ assert.equal(args.from,"2006-01-01");assert.equal(args.recordedFrom,null);
+});
+test("partial history says the limit once without internal verification phrasing",()=>{
+ const source={handle:"s1",kind:"history",petName:"QA Willow 20Y",eventAt:"2021-07-18T12:00:00Z",
+  recordedAt:"2026-11-19T12:00:00Z",body:"Willow played indoors."};
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p2"],
+  status:"complete",reason:"none",missing:[],componentIndexes:[0],sources:["s1"],historyFacts:[],ownerFacts:[],includeSourceDates:false};
+ const answer={answer:"",validatedParts:[{index:0,text:"The returned notes describe indoor play. The search was partial."}],
+  presentation:{sourceDates:[]},quotes:[]};
+ const coverage=[{scope:{kind:"history",pet:source.petName,goal:"complete_set"},sources:[{source:"s1"}],
+  omitted:1,unmet:["evidence_omitted"],hasMore:false,hasPrevious:false,truncated:true}];
+ const result=renderTaskCompletion(answer,[task],[source],null,coverage);
+ assert.match(result.answer,/search was partial/);
+ assert.doesNotMatch(result.answer,/source bodies|generated date-specific|Saved history:/);
+ assert.equal(result.taskCompletion[0].status,"partial");
+});
+test("one task's partial caveat does not hide another task's source limit",()=>{
+ const source={handle:"s1",kind:"history",petName:"QA Willow 20Y",eventAt:"2021-07-18T12:00:00Z",
+  recordedAt:"2026-11-19T12:00:00Z",body:"Willow played indoors."};
+ const tasks=[
+  {id:"t1",kind:"general_guidance",needsHistory:false,recordMode:"none",status:"complete",reason:"none",
+   missing:[],componentIndexes:[0],sources:[],historyFacts:[],ownerFacts:[]},
+  {id:"t2",kind:"saved_content",needsHistory:true,recordMode:"collection",status:"complete",reason:"none",
+   missing:[],componentIndexes:[1],sources:["s1"],historyFacts:[],ownerFacts:[],includeSourceDates:false}
+ ];
+ const answer={answer:"",validatedParts:[{index:0,text:"This general guidance is partial."},
+  {index:1,text:"Willow's notes mention indoor play."}],presentation:{sourceDates:[]},quotes:[]};
+ const coverage=[{scope:{kind:"history",pet:source.petName,goal:"complete_set"},sources:[{source:"s1"}],
+  omitted:1,unmet:["evidence_omitted"],hasMore:false,hasPrevious:false,truncated:true}];
+ const result=renderTaskCompletion(answer,tasks,[source],null,coverage);
+ assert.match(result.answer,/Saved history: I could review only part of the saved history/);
 });
