@@ -10,6 +10,15 @@ import { issueReadOnlyCitationProof } from "../ask-citation-proof.ts";
 export const MAX_READ_ONLY_PUBLICATION_BYTES=56*1024;
 const publicationBytes=(response:unknown)=>Buffer.byteLength(JSON.stringify(response,null,1),"utf8");
 
+export function guardVerifiedSourceText(text:string,protectedText?:string) {
+ const at=protectedText?text.indexOf(protectedText):-1;
+ const prose=at>=0?[text.slice(0,at),text.slice(at+protectedText!.length)]:[text];
+ const checkedParts=prose.map(part=>part.trim()?enforceVerifiedStateClaims(part,false):part);
+ const checked=at>=0?checkedParts[0]+protectedText+checkedParts[1]:checkedParts[0];
+ const stateRejected=prose.some((part,index)=>checkedParts[index]!==part
+  &&(containsUnverifiedStateClaim(part)||containsNavigationExecutionClaim(part)));
+ return {checked,stateRejected};
+}
 /** No stored-text normalization: only the conversational prose passes state-claim checks. */
 export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:string) {
  if(!isReadOnlyResult(result))throw new Error("ASK_READ_RESULT_INVALID");
@@ -32,14 +41,9 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
   ...(coverageMessages.length?[{heading:"Search coverage",items:coverageMessages}]:[]),
   ...(contextMessages.length?[{heading:"Conversation context",items:contextMessages}]:[])
  ];
- const protectedBrief=(body as typeof body & {verifiedBriefText?:string}).verifiedBriefText;
- const briefAt=protectedBrief?body.answer.indexOf(protectedBrief):-1;
- // Exact verified fact quotations are source/owner data, never execution prose.
- // Keep them whole while checking the surrounding conversational text.
- const prose=briefAt>=0?[body.answer.slice(0,briefAt),body.answer.slice(briefAt+protectedBrief!.length)]:[body.answer];
- const checkedParts=prose.map(text=>text.trim()?enforceVerifiedStateClaims(text,false):text);
- const checked=briefAt>=0?checkedParts[0]+protectedBrief+checkedParts[1]:checkedParts[0];
- const stateRejected=prose.some((text,index)=>checkedParts[index]!==text&&(containsUnverifiedStateClaim(text)||containsNavigationExecutionClaim(text)));
+ const protectedText=(body as typeof body & {verifiedBriefText?:string;verifiedSourceText?:string}).verifiedBriefText
+  ??(body as typeof body & {verifiedSourceText?:string}).verifiedSourceText;
+ const {checked,stateRejected}=guardVerifiedSourceText(body.answer,protectedText);
  let limited=body.limited||stateRejected;
  // A removed execution claim must leave a truthful capability explanation,
  // even when an unrelated joke or general answer survives the filter.

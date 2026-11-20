@@ -88,3 +88,13 @@ test("ambiguous cross-pet source never supplies a made-up date to the opening se
  assert.match(pub.response.summary,/on Aster weighed/);
  assert.doesNotMatch(pub.response.summary,/on 2026-09-15, Aster weighed/);
 });
+test("exact source facts stay intact while surrounding execution claims are removed",async()=>{
+ const {guardVerifiedSourceText}=await import("../app/lib/ask-read-only/publication.ts");
+ const exact="Here’s what I found in the saved notes:\nQA Marigold 20Y - event 2011-05-14: “Synthetic QA record: Marigold changed to salmon food; no rabbit food switch was recorded.”";
+ const safe=guardVerifiedSourceText(exact,exact);
+ assert.equal(safe.checked,exact);assert.equal(safe.stateRejected,false);
+ const unsafe=guardVerifiedSourceText("I saved the profile. "+exact,exact);
+ assert.doesNotMatch(unsafe.checked,/I saved the profile/);
+ assert.match(unsafe.checked,/Marigold changed to salmon food/);
+ assert.equal(unsafe.stateRejected,true);
+});

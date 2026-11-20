@@ -195,11 +195,12 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
   if(t.needsHistory&&relevant.some(r=>r.scope.goal==="complete_set"&&(r.omitted>0||r.hasMore||r.hasPrevious||r.truncated||r.unmet?.includes("prior_source_selection_omitted"))))return {...t,status:"partial",reason:"source_omitted"};
   return t;
  });
- // A sole saved-history task can quote one complete short original per
+ // One or two saved-history tasks can quote one complete short original per
  // fully inspected bounded window when generated prose omitted an answer.
- if(!policy?.active&&tasks.length===1&&tasks[0].kind==="saved_content"&&tasks[0].needsHistory
-   &&tasks[0].pets?.length===1&&!tasks[0].missing.length){
-   const task=tasks[0],windows=coverage.filter(r=>r.scope?.kind==="history"&&r.scope?.pet
+ if(!policy?.active&&tasks.length>=1&&tasks.length<=2&&tasks.every(t=>t.kind==="saved_content"
+   &&t.needsHistory&&t.pets?.length===1&&t.pets[0]===tasks[0].pets?.[0]&&!t.missing.length)
+   &&(tasks.length===1||tasks.every(t=>t.sources.length))){
+   const windows=coverage.filter(r=>r.scope?.kind==="history"&&r.scope?.pet
      &&(r.scope.from&&r.scope.to||r.scope.recordedFrom&&r.scope.recordedTo));
    const rows=windows.map(r=>sources.find(s=>s.handle===r.sources?.[0]?.source&&s.kind==="history"&&s.petName===r.scope.pet));
    const requested=requestedScopes.length===0||requestedScopes.length===windows.length
@@ -211,14 +212,16 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
        &&!r.unmet?.length&&!r.hasMore&&!r.hasPrevious&&!r.truncated)
      &&rows.every(row=>row&&row.body.trim().length<=280&&completeSentence(row.body,row.body.trim()));
    const failed=/I can read saved information, but|I can help with that|Which pet|couldn.t verify|could not reliably complete/i.test(answer.answer)
-     ||containsUnverifiedStateClaim(answer.answer)||answer.replyType!=="answer"||task.status!=="complete"||task.sources.length<windows.length;
+     ||containsUnverifiedStateClaim(answer.answer)||answer.replyType!=="answer"||tasks.some(t=>t.status!=="complete")
+     ||new Set(tasks.flatMap(t=>t.sources)).size<windows.length;
    if(clean&&failed){
      const facts=rows.map(row=>row.petName+" - event "+row.eventAt.slice(0,10)+": “"+row.body.trim()+"”");
-     return {...answer,answer:"Here’s what I found in the saved notes:\n"+facts.join("\n"),
+     const verifiedSourceText="Here’s what I found in the saved notes:\n"+facts.join("\n");
+     return {...answer,answer:verifiedSourceText,verifiedSourceText,
        sources:[...new Set([...answer.sources,...rows.map(row=>row.handle)])],
        quotes:[...new Map([...answer.quotes,...rows.map(row=>({source:row.handle,quote:row.body}))].map(q=>[q.source,q])).values()],
        presentation:{...answer.presentation,sourceDates:[],contextRequired:false},
-       taskCompletion:[{id:task.id,kind:task.kind,status:"complete",reason:"none",sourceCount:rows.length}],
+       taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:"complete",reason:"none",sourceCount:t.sources.length||rows.length})),
        limited:false,replyType:"answer"};
    }
  }
