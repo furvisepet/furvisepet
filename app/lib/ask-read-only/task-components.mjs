@@ -182,7 +182,7 @@ function uniqueWindowFacts(task,sources,coverage){
  return rows.map((row,index)=>({source:row.handle,excerpt:excerpts[index]}));
 }
 const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
-export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
+export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],requestedScopes=[]){
  if(!tasks)return answer;
  const firstBrief=tasks.find(t=>t.kind==="vet_brief")?.id;
  tasks=tasks.map(t=>{
@@ -194,6 +194,33 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   if(t.needsHistory&&relevant.some(r=>r.scope.goal==="complete_set"&&(r.omitted>0||r.hasMore||r.hasPrevious||r.truncated||r.unmet?.includes("prior_source_selection_omitted"))))return {...t,status:"partial",reason:"source_omitted"};
   return t;
  });
+ // A sole saved-history task can quote one complete short original per
+ // fully inspected bounded window when generated prose omitted an answer.
+ if(!policy?.active&&tasks.length===1&&tasks[0].kind==="saved_content"&&tasks[0].needsHistory
+   &&tasks[0].pets?.length===1&&!tasks[0].missing.length){
+   const task=tasks[0],windows=coverage.filter(r=>r.scope?.kind==="history"&&r.scope?.pet
+     &&(r.scope.from&&r.scope.to||r.scope.recordedFrom&&r.scope.recordedTo));
+   const rows=windows.map(r=>sources.find(s=>s.handle===r.sources?.[0]?.source&&s.kind==="history"&&s.petName===r.scope.pet));
+   const requested=requestedScopes.length===0||requestedScopes.length===windows.length
+     &&requestedScopes.every(scope=>windows.some(r=>r.scope.from===scope.from&&r.scope.to===scope.to
+       ||r.scope.recordedFrom===scope.from&&r.scope.recordedTo===scope.to));
+   const clean=requested&&windows.length>=1&&windows.length<=2&&new Set(windows.map(r=>r.scope.pet)).size===1
+     &&new Set(rows.map(r=>r?.handle)).size===windows.length
+     &&windows.every(r=>r.sources.length===1&&r.inspected===1&&r.queryScopeExhausted&&r.scopeExhausted
+       &&!r.unmet?.length&&!r.hasMore&&!r.hasPrevious&&!r.truncated)
+     &&rows.every(row=>row&&row.body.trim().length<=280&&completeSentence(row.body,row.body.trim()));
+   const failed=/I can read saved information, but|Which pet|couldn.t verify|could not reliably complete/i.test(answer.answer)
+     ||answer.replyType!=="answer"||task.status!=="complete"||task.sources.length<windows.length;
+   if(clean&&failed){
+     const facts=rows.map(row=>row.petName+" - event "+row.eventAt.slice(0,10)+": “"+row.body.trim()+"”");
+     return {...answer,answer:"Here’s what I found in the saved notes:\n"+facts.join("\n"),
+       sources:[...new Set([...answer.sources,...rows.map(row=>row.handle)])],
+       quotes:[...new Map([...answer.quotes,...rows.map(row=>({source:row.handle,quote:row.body}))].map(q=>[q.source,q])).values()],
+       presentation:{...answer.presentation,sourceDates:[],contextRequired:false},
+       taskCompletion:[{id:task.id,kind:task.kind,status:"complete",reason:"none",sourceCount:rows.length}],
+       limited:false,replyType:"answer"};
+   }
+ }
  const blocked=new Set(tasks.filter(t=>t.status==="unresolved"||t.needsHistory&&!t.sources.length||t.needsOwnerFacts&&!t.ownerFacts.length).flatMap(t=>t.componentIndexes));
  tasks=tasks.map(t=>t.status==="complete"&&t.componentIndexes.some(i=>blocked.has(i))?{...t,status:"partial",reason:"not_answered"}:t);
  const workflowParts=new Set(tasks.filter(t=>t.kind==="workflow").flatMap(t=>t.componentIndexes));
@@ -254,7 +281,8 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
   if(detail&&!text.includes(detail))text+="\n\n"+labels[task.kind]+": "+detail;
  }
  const dateHandles=[...new Set(tasks.filter(t=>t.includeSourceDates).flatMap(t=>t.sources))].filter(h=>!brief?.historyFacts.some(f=>f.source===h));
- const sourceDates=dateHandles.filter(h=>!tasks.some(t=>t.recordMode==="collection"&&t.sources.includes(h))).map(h=>{const s=sources.find(s=>s.handle===h);return {kind:s.kind,eventAt:s.eventAt,recordedAt:s.recordedAt,pet:s.petName??null};});
+ const sourceDates=dateHandles.filter(h=>!tasks.some(t=>t.recordMode==="collection"&&t.sources.includes(h)))
+  .filter(h=>!text.includes(sources.find(s=>s.handle===h)?.eventAt.slice(0,10))).map(h=>{const s=sources.find(s=>s.handle===h);return {kind:s.kind,eventAt:s.eventAt,recordedAt:s.recordedAt,pet:s.petName??null};});
  return {...answer,answer:text,...(verifiedBriefText?{verifiedBriefText}:{}),...(policy?.active?{ownerReports:brief?[]:[...new Set(tasks.flatMap(t=>t.ownerFacts.map(f=>f.excerpt)))]}:{}),presentation:{...answer.presentation,sourceDates,contextRequired:tasks.some(t=>t.missing.includes("which_record"))&&answer.presentation?.contextRequired===true},taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:t.status,reason:t.reason,sourceCount:t.sources.length})),limited:incomplete.length>0||!!policy?.decision,replyType:!policy?.active&&clarify.length&&tasks.every(t=>t.missing.length)?"clarification":incomplete.length||policy?.decision?"partial":"answer"};
 }
 

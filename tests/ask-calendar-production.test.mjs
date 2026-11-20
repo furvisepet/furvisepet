@@ -81,3 +81,45 @@ test("explicit event date is not an ambiguous recorded date",()=>{
  assert.equal(explicitRequestedTimeBasis("Give event and recorded dates."),null);
  assert.equal(explicitRequestedTimeBasis("When did she stay there?"),null);
 });
+
+test("explicit named pet resolves a mistaken missing-pet calendar plan",()=>{
+ const selected={...first,historyIntent:{requested:true,timeBasis:"event",pet:null},
+  safety:{...safety,missingContext:["pet","date"]},
+  taskPlan:[{...task,pets:[],missing:["pet","year","which_record"]}]};
+ const recovered=recoverBoundedCalendarRead(selected,
+  {question:"Where did QA Willow 20Y stay in 2021? Give the event date."},pets);
+ assert.ok(recovered);
+ assert.deepEqual(recovered.first.taskPlan[0].pets,["p2"]);
+ assert.deepEqual(recovered.first.taskPlan[0].missing,["which_record"]);
+ assert.equal(JSON.parse(recovered.first.calls[0].arguments).pet,"p2");
+ assert.equal(recoverBoundedCalendarRead(selected,{question:"Where did she stay in 2021?"},pets),null);
+});
+test("failed two-window answer uses both complete originals and no capability prose",()=>{
+ const sources=[
+  {handle:"s1",kind:"history",petName:"QA Saffron 20Y",eventAt:"2011-05-14T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Saffron switched to rabbit food."},
+  {handle:"s2",kind:"history",petName:"QA Saffron 20Y",eventAt:"2021-07-18T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Saffron stayed at the orchard cottage."}
+ ];
+ const coverage=sources.map((source,index)=>({scope:{kind:"history",pet:source.petName,from:index?"2021-01-01":"2011-01-01",to:index?"2021-12-31":"2011-12-31"},
+  sources:[{source:source.handle}],inspected:1,unmet:[],hasMore:false,hasPrevious:false,truncated:false,queryScopeExhausted:true,scopeExhausted:true}));
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"],status:"partial",reason:"not_answered",missing:[],componentIndexes:[0],sources:["s2"],historyFacts:[],ownerFacts:[],includeSourceDates:true};
+ const answer={answer:"I can read saved information, but I can't make changes or open pages through Ask.",replyType:"partial",sources:["s2"],quotes:[{source:"s2",quote:sources[1].body}],presentation:{sourceDates:[]}};
+ const scopes=[{from:"2011-01-01",to:"2011-12-31"},{from:"2021-01-01",to:"2021-12-31"}];
+ const result=renderTaskCompletion(answer,[task],sources,null,coverage,scopes);
+ assert.match(result.answer,/rabbit food/);assert.match(result.answer,/orchard cottage/);
+ assert.match(result.answer,/2011-05-14/);assert.match(result.answer,/2021-07-18/);
+ assert.doesNotMatch(result.answer,/can't make changes/);
+ assert.deepEqual(result.sources,["s2","s1"]);assert.equal(result.replyType,"answer");
+ assert.deepEqual(result.presentation.sourceDates,[]);
+ const incomplete=renderTaskCompletion(answer,[task],sources,null,[coverage[0],{...coverage[1],hasMore:true}],scopes);
+ assert.doesNotMatch(incomplete.answer,/rabbit food/);
+ const missingWindow=renderTaskCompletion(answer,[task],sources,null,[coverage[1]],scopes);
+ assert.doesNotMatch(missingWindow.answer,/rabbit food/);
+ assert.notEqual(missingWindow.taskCompletion?.[0]?.status,"complete");
+});
+test("verified event day already in prose does not append raw timestamps",()=>{
+ const source={handle:"s1",kind:"history",petName:"QA Marigold 20Y",eventAt:"2011-05-14T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Marigold switched to salmon food."};
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"single",pets:["p1"],status:"complete",reason:"none",missing:[],componentIndexes:[0],sources:["s1"],historyFacts:[],ownerFacts:[],includeSourceDates:true};
+ const answer={answer:"Marigold switched to salmon food on 2011-05-14.",replyType:"answer",sources:["s1"],quotes:[],presentation:{sourceDates:[]}};
+ const result=renderTaskCompletion(answer,[task],[source],null,[]);
+ assert.deepEqual(result.presentation.sourceDates,[]);
+});
