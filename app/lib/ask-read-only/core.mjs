@@ -26,7 +26,7 @@ export function requiresSelectedPetContext(question,selectedPet) {
  * This does not handle historical comparisons, clinical interpretation or actions. */
 export function reconcileNamedProfileRead(first,context,pets){
  const question=String(context.question??"");
- if(!/\bprofile\b/i.test(question)||!/\b(?:age|food|breed|weight|species|sex|birthday|preference|preferences)\b/i.test(question)
+ if(!/\bprofile\b/i.test(question)||!/\b(?:age|food|diet|feeding|breed|weight|species|sex|birthday|preference|preferences)\b/i.test(question)
   ||/\b(?:note|journal|history|record|entry|event|compare|versus|changed|before|after|past|safe|healthy|should|medicine|medication|symptom)\b/i.test(question)
   ||explicitCalendarScopes(question).length)return null;
  const named=namedPetsForHistory(question,pets);if(named.length!==1||!first.taskPlan?.length)return null;
