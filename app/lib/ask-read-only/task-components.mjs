@@ -216,7 +216,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
      ||containsUnverifiedStateClaim(answer.answer)||enforceVerifiedStateClaims(answer.answer,false)!==answer.answer
      ||answer.replyType!=="answer"||tasks.some(t=>t.status!=="complete")
      ||new Set(tasks.flatMap(t=>t.sources)).size<windows.length
-     ||tasks.some(t=>t.includeSourceDates)&&rows.some(row=>row&&!answer.answer.includes(row.eventAt.slice(0,10)));
+     ||rows.length===1&&tasks.some(t=>t.includeSourceDates)&&rows.some(row=>row&&!answer.answer.includes(row.eventAt.slice(0,10)));
    if(clean&&failed){
      const facts=rows.map(row=>"The saved note for "+row.petName+" about "+row.eventAt.slice(0,10)+" says: "+String.fromCharCode(0x201c)+row.body.trim()+String.fromCharCode(0x201d));
      const verifiedSourceText=facts.join("\n");
@@ -239,12 +239,10 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
  const collectionParts=new Set(collectionTasks.flatMap(t=>t.componentIndexes));
  const fallback=new Map(collectionTasks.map(t=>[t,uniqueWindowFacts(t,sources,coverage)]));
  const selectedDatedFacts=collectionTasks.flatMap(t=>[...t.historyFacts,...fallback.get(t)]).slice(0,6);
- const fallbackParts=new Set(collectionTasks.filter(t=>fallback.get(t).length).flatMap(t=>t.componentIndexes)
-  .filter(index=>!tasks.some(t=>!collectionTasks.includes(t)&&t.componentIndexes.includes(index))));
  let removedCalendar=false;
  let text=!policy?.active&&answer.validatedParts?answer.validatedParts.filter(p=>assigned.has(p.index)&&!blocked.has(p.index)&&!calculationParts.has(p.index)).map(p=>{
   if(!collectionParts.has(p.index))return p.text;
-  if(fallbackParts.has(p.index))return "";
+  if(/I can read saved information, but|I can help with that|Which pet|couldn.t verify|could not reliably complete/i.test(p.text)||containsUnverifiedStateClaim(p.text))return "";
   const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
  }).filter(Boolean).join("\n\n"):answer.answer,verifiedBriefText=null;
  if(!policy?.active&&!brief&&selectedDatedFacts.length){

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {explicitCalendarScopes,explicitRequestedTimeBasis,recoverBoundedCalendarRead,clarifyUnboundHistoryPronoun} from "../app/lib/ask-read-only/calendar-scope.mjs";
+import {explicitCalendarScopes,explicitRequestedTimeBasis,recoverBoundedCalendarRead,clarifyUnboundHistoryPronoun,namedPetsForHistory} from "../app/lib/ask-read-only/calendar-scope.mjs";
+import {reconcileNamedProfileRead} from "../app/lib/ask-read-only/core.mjs";
 import {renderTaskCompletion} from "../app/lib/ask-read-only/task-components.mjs";
 
 const pets=[{handle:"p1",name:"QA Juniper 20Y"},{handle:"p2",name:"QA Willow 20Y"}];
@@ -333,4 +334,55 @@ test("one task's partial caveat does not hide another task's source limit",()=>{
   omitted:1,unmet:["evidence_omitted"],hasMore:false,hasPrevious:false,truncated:true}];
  const result=renderTaskCompletion(answer,tasks,[source],null,coverage);
  assert.match(result.answer,/Saved history: I could review only part of the saved history/);
+});
+
+test("a unique familiar pet name resolves historical years without guessing a shared name",()=>{
+ assert.deepEqual(namedPetsForHistory("Compare Willow in 2006 and 2021",pets).map(p=>p.handle),["p2"]);
+ assert.deepEqual(namedPetsForHistory("Compare QA Willow 20Y in 2006 and 2021",pets).map(p=>p.handle),["p2"]);
+ const overlapping=[...pets,{handle:"p3",name:"Willow Rose"}];
+ assert.deepEqual(namedPetsForHistory("What happened to Willow in 2006?",overlapping),[]);
+ const recovered=recoverBoundedCalendarRead({...first,taskPlan:[{...task,pets:["p2"],missing:["which_record"]}]},
+  {question:"How do Willow's arrival note in 2006 and trip note in 2021 differ?"},pets);
+ assert.ok(recovered);
+ assert.deepEqual(recovered.first.calls.map(call=>JSON.parse(call.arguments).from),["2006-01-01","2021-01-01"]);
+ assert.deepEqual(recovered.first.taskPlan[0].missing,[]);
+ assert.equal(recoverBoundedCalendarRead(first,{question:"Compare Willow and Juniper in 2006"},pets),null);
+});
+
+test("a sourced comparison keeps its undated synthesis and receives verified dates",()=>{
+ const sources=[
+  {handle:"s1",kind:"history",petName:"QA Willow 20Y",eventAt:"2006-04-12T12:00:00Z",recordedAt:"2026-11-19T12:00:00Z",body:"Willow arrived with a violet collar."},
+  {handle:"s2",kind:"history",petName:"QA Willow 20Y",eventAt:"2021-07-18T12:00:00Z",recordedAt:"2026-11-19T12:00:00Z",body:"Willow stayed at the beach cabin."}
+ ];
+ const coverage=sources.map((source,index)=>({scope:{kind:"history",pet:source.petName,from:index?"2021-01-01":"2006-01-01",to:index?"2021-12-31":"2006-12-31"},
+  sources:[{source:source.handle}],inspected:1,unmet:[],hasMore:false,hasPrevious:false,truncated:false,queryScopeExhausted:true,scopeExhausted:true}));
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p2"],
+  status:"complete",reason:"none",missing:[],componentIndexes:[0],sources:["s1","s2"],
+  historyFacts:[],ownerFacts:[],includeSourceDates:true};
+ const answer={answer:"The earlier record is about Willow arriving with a collar, while the later one describes a cabin trip. These are different events.",
+  validatedParts:[{index:0,text:"The earlier record is about Willow arriving with a collar, while the later one describes a cabin trip. These are different events."}],
+  replyType:"answer",sources:["s1","s2"],quotes:[],presentation:{sourceDates:[],contextRequired:false}};
+ const result=renderTaskCompletion(answer,[task],sources,null,coverage,[{from:"2006-01-01",to:"2006-12-31"},{from:"2021-01-01",to:"2021-12-31"}]);
+ assert.match(result.answer,/different events/);
+ assert.match(result.answer,/event 2006-04-12/);
+ assert.match(result.answer,/event 2021-07-18/);
+ assert.equal(result.replyType,"answer");
+ assert.equal(result.verifiedSourceText,undefined);
+});
+
+test("a plain named profile lookup needs one owned profile read and one task",()=>{
+ const q="Tell me Dune's saved profile age and current food, briefly.";
+ const pet={handle:"dune",name:"Dune"};
+ const selection={calls:[],text:"Which pet should I use?",safety:{...safety,missingContext:["pet"]},
+  taskPlan:[{...task,id:"t1",pets:[],missing:["pet"]},
+   {id:"t2",kind:"general_guidance",needsHistory:false,recordMode:"none",pets:[],missing:[]}]};
+ const fixed=reconcileNamedProfileRead(selection,{question:q},[pet]);
+ assert.ok(fixed);
+ assert.equal(fixed.taskPlan.length,1);
+ assert.deepEqual(fixed.taskPlan[0].pets,["dune"]);
+ assert.deepEqual(fixed.taskPlan[0].missing,[]);
+ assert.equal(fixed.calls[0].name,"read_pet_profile");
+ assert.deepEqual(JSON.parse(fixed.calls[0].arguments),{pet:"dune"});
+ assert.equal(reconcileNamedProfileRead(selection,{question:"What does Dune's profile say about food history?"},[pet]),null);
+ assert.equal(reconcileNamedProfileRead(selection,{question:"Is Dune's food safe based on the profile?"},[pet]),null);
 });

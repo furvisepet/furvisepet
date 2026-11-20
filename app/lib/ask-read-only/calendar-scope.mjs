@@ -45,14 +45,24 @@ export function explicitRequestedTimeBasis(question){
 export function requestedHistoryTimeBasis(question){
  return explicitRequestedTimeBasis(question)??"event";
 }
+/** A unique substantial token in an owned display name can identify that pet
+ * when the owner uses its familiar short name. Shared tokens never resolve. */
+export function namedPetsForHistory(question,pets){
+ const escaped=name=>name.replace(/[.*+?$^{}()|[\]\\]/g,"\\$&");
+ const mentions=name=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(name)+"(?![\\p{L}\\p{N}])","iu").test(question);
+ const full=pets.filter(pet=>mentions(pet.name));if(full.length)return full;
+ const names=pets.map(pet=>[pet, [...new Set(pet.name.match(/\p{L}{3,}/gu)?.map(token=>token.toLocaleLowerCase())??[])]]);
+ const owners=new Map();
+ for(const [pet,tokens] of names)for(const token of tokens)owners.set(token,new Set([...(owners.get(token)??[]),pet.handle]));
+ return names.filter(([,tokens])=>tokens.some(token=>owners.get(token)?.size===1&&mentions(token))).map(([pet])=>pet);
+}
 /** Bind a fresh, dated pet-note pronoun to the selected pet only with one safe scope. */
 export function clarifyUnboundHistoryPronoun(first,context,pets){
  const question=String(context.question??"");
  if(context.dialogue?.length||context.references?.length
   ||!/\b(?:she|her|he|him|his|they|them|their)\b/i.test(question)
   ||!/\b(?:what happened|history|saved|note|record|entry)\b/i.test(question))return first;
- const escaped=name=>name.replace(/[.*+?$^{}()|[\]\\]/g,"\\$&");
- if(pets.some(pet=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(pet.name)+"(?![\\p{L}\\p{N}])","iu").test(question)))return first;
+ if(namedPetsForHistory(question,pets).length)return first;
  const tasks=first.taskPlan;
  if(!tasks?.length||!tasks.every(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null))return first;
  const selected=pets.find(pet=>pet.handle===context.selectedPet);
@@ -83,8 +93,7 @@ export function recoverBoundedCalendarRead(first,context,pets){
   &&/\bdates?\b/i.test(context.question);
  if(bothAxes&&!explicitRequestedTimeBasis(context.question))return null;
  const scopes=explicitCalendarScopes(context.question);if(scopes.length<1||scopes.length>2)return null;
- const escaped=name=>name.replace(/[.*+?$^{}()|[\]\\]/g,"\\$&");
- const named=pets.filter(pet=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(pet.name)+"(?![\\p{L}\\p{N}])","iu").test(context.question));
+ const named=namedPetsForHistory(context.question,pets);
  if(named.length!==1)return null;
  const safe=first.safety?.careContext==="none"&&first.safety.medicationIntent==="none"
   &&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length||first.safety.eventAssessments?.length)
