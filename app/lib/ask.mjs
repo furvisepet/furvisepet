@@ -96,7 +96,7 @@ export function parseAskConversationResponse(value) {
   const allowedActions = new Set(ASK_ACTIONS_BY_TYPE[answerType]);
   const actions = Array.isArray(draft.actions) ? draft.actions.filter((action) => allowedActions.has(action)).slice(0, 4) : [];
   // A broad search can be partial while every requested task was answered.
-  // Keep the scope accounting in Search details without a false generic banner.
+  // Detailed search accounting does not belong in the public answer.
   const allReadTasksComplete = Array.isArray(draft.readOnlyTaskCompletion)
     && draft.readOnlyTaskCompletion.length > 0
     && draft.readOnlyTaskCompletion.every((task) => task?.status === "complete");
@@ -386,9 +386,13 @@ export function buildUrgentAskResponse() {
   };
 }
 
+export function publicAskSections(sections) {
+  return Array.isArray(sections) ? sections.filter(section => section.heading !== "Search coverage") : [];
+}
+
 export function formatAskResponsePlainText(response) {
   const lines = [response.title, "", response.summary];
-  for (const section of response.sections) {
+  for (const section of publicAskSections(response.sections)) {
     lines.push("", section.heading, ...section.items.map((item) => `- ${item}`));
   }
   if (response.safetyNote) lines.push("", "Safety note", response.safetyNote);
