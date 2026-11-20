@@ -70,7 +70,7 @@ test("a unique inspected window quotes the original note when generated prose is
   queryScopeExhausted:true,scopeExhausted:true}];
  const result=renderTaskCompletion(answer,[task],[source],null,coverage);
  assert.match(result.answer,/Marigold switched to salmon food/);
- assert.match(result.answer,/event 2011-05-14/);
+ assert.match(result.answer,/On 2011-05-14/);
  assert.doesNotMatch(result.answer,/can't make changes/);
  assert.equal(result.replyType,"answer");
  const incomplete=renderTaskCompletion(answer,[task],[source],null,[{...coverage[0],hasMore:true}]);
@@ -523,4 +523,22 @@ test("plain two-year history comparison reconciles a misplanned task and reads b
  assert.match(oneSided.answer.answer,/Marigold stayed at the lake house/);
  assert.doesNotMatch(oneSided.answer.answer,/I can read saved information/);
  assert.equal(oneSided.answer.replyType,"answer");
+});
+
+test("verified short notes become direct dated sentences when model prose is empty",()=>{
+ const sources=[
+  {handle:"a",kind:"history",petName:"Example Cat",eventAt:"2013-03-04T00:00:00Z",recordedAt:"2026-01-01T00:00:00Z",body:"The cat preferred the blue blanket."},
+  {handle:"b",kind:"history",petName:"Example Cat",eventAt:"2023-09-10T00:00:00Z",recordedAt:"2026-01-01T00:00:00Z",body:"The cat played with a soft ball."}
+ ];
+ const tasks=sources.map((source,i)=>({id:"t"+(i+1),kind:"saved_content",needsHistory:true,recordMode:"collection",
+  status:"complete",reason:"none",missing:[],componentIndexes:[i],sources:[source.handle],
+  historyFacts:[{source:source.handle,excerpt:source.body}],ownerFacts:[],includeSourceDates:false}));
+ const answer={answer:"",validatedParts:[],replyType:"answer",sources:sources.map(s=>s.handle),quotes:[],presentation:{sourceDates:[]}};
+ const result=renderTaskCompletion(answer,tasks,sources,null,[]);
+ assert.match(result.answer,/On 2013-03-04, Example Cat's saved note says: \u201cThe cat preferred the blue blanket.\u201d/);
+ assert.match(result.answer,/On 2023-09-10, Example Cat's saved note says: \u201cThe cat played with a soft ball.\u201d/);
+ assert.doesNotMatch(result.answer,/Here\u2019s what I found|recorded 2026/);
+ assert.equal(result.verifiedSourceText,result.answer.trim());
+ const partial=renderTaskCompletion(answer,[{...tasks[0],status:"partial"}],sources,null,[]);
+ assert.doesNotMatch(partial.answer,/On 2013-03-04/);
 });

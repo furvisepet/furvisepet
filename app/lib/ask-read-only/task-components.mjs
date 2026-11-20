@@ -297,11 +297,28 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
   const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
  }).filter(Boolean).join("\n\n"):answer.answer,verifiedBriefText=null;
  if(!policy?.active&&!brief&&selectedDatedFacts.length){
-  const verifiedHistoryText="Here’s what I found in the saved notes:\n"+[...new Set(selectedDatedFacts.map(f=>{
-   const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
-   return "• "+s.petName+"  -  event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+": “"+f.excerpt+"”";
-  }))].join("\n");
-  text+="\n\n"+verifiedHistoryText;
+  // Only a complete, source-only reply may use a conversational excerpt.
+  // Mixed or broad collections keep the existing evidence list and coverage.
+  const uniqueFacts=[...new Map(selectedDatedFacts.map(f=>[f.source,f])).values()];
+  const sourceOnly=!text.trim()&&tasks.length===collectionTasks.length&&collectionTasks.length>0
+   &&tasks.every(t=>t.status==="complete"&&!t.missing.length)
+   &&uniqueFacts.length===selectedDatedFacts.length&&uniqueFacts.length<=2
+   &&uniqueFacts.every(f=>{
+    const s=sources.find(s=>s.handle===f.source);
+    return s?.kind==="history"&&s.body.includes(f.excerpt)&&/^\d{4}-\d{2}-\d{2}/.test(s.eventAt);
+   });
+  const verifiedHistoryText=sourceOnly
+   ?uniqueFacts.map(f=>{
+    const s=sources.find(s=>s.handle===f.source);
+    const recorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f))
+     ?" (recorded "+s.recordedAt.slice(0,10)+")":"";
+    return "On "+s.eventAt.slice(0,10)+recorded+", "+s.petName+"'s saved note says: \u201c"+f.excerpt+"\u201d";
+   }).join("\n")
+   :"Here\u2019s what I found in the saved notes:\n"+[...new Set(selectedDatedFacts.map(f=>{
+    const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
+    return "\u2022 "+s.petName+"  -  event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+": \u201c"+f.excerpt+"\u201d";
+   }))].join("\n");
+  text=text?text+"\n\n"+verifiedHistoryText:verifiedHistoryText;
   answer={...answer,verifiedSourceText:verifiedHistoryText};
  }
  if(removedCalendar&&!selectedDatedFacts.length){
