@@ -123,3 +123,29 @@ test("verified event day already in prose does not append raw timestamps",()=>{
  const result=renderTaskCompletion(answer,[task],[source],null,[]);
  assert.deepEqual(result.presentation.sourceDates,[]);
 });
+
+test("named event date recovers a profile-only first pass with missing year",()=>{
+ const selected={...first,historyIntent:{requested:false,timeBasis:"event",pet:null},
+  safety:{...safety,missingContext:["pet","year"]},
+  taskPlan:[{...task,pets:[],missing:["pet","year","which_record"]}],
+  calls:[{id:"profile",name:"read_pet_profile",arguments:JSON.stringify({pet:"p2"})}]};
+ const recovered=recoverBoundedCalendarRead(selected,
+  {question:"Where did QA Willow 20Y stay in 2021? Give the event date."},pets);
+ assert.ok(recovered);
+ assert.equal(recovered.first.calls.length,1);
+ assert.equal(recovered.first.calls[0].name,"search_saved_records");
+ assert.equal(JSON.parse(recovered.first.calls[0].arguments).from,"2021-01-01");
+});
+test("a generated app execution claim yields exact bounded note instead",()=>{
+ const source={handle:"s1",kind:"history",petName:"QA Marigold 20Y",eventAt:"2011-05-14T19:00:00Z",
+  recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Marigold switched to salmon food."};
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"single",pets:["p1"],status:"complete",reason:"none",
+  missing:[],componentIndexes:[0],sources:["s1"],historyFacts:[],ownerFacts:[],includeSourceDates:true};
+ const answer={answer:"I opened the history page. I can help with that.",replyType:"answer",sources:["s1"],quotes:[],presentation:{sourceDates:[]}};
+ const coverage=[{scope:{kind:"history",pet:source.petName,from:"2011-01-01",to:"2011-12-31"},sources:[{source:"s1"}],
+  inspected:1,unmet:[],hasMore:false,hasPrevious:false,truncated:false,queryScopeExhausted:true,scopeExhausted:true}];
+ const result=renderTaskCompletion(answer,[task],[source],null,coverage,[{from:"2011-01-01",to:"2011-12-31"}]);
+ assert.match(result.answer,/salmon food/);
+ assert.doesNotMatch(result.answer,/opened the history page|I can help with that/);
+ assert.equal(result.taskCompletion[0].status,"complete");
+});

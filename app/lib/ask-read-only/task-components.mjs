@@ -1,3 +1,4 @@
+import { containsUnverifiedStateClaim } from "../application-actions/state-claims.ts";
 /** Requested work is independent of prose mode. References remain hints until
  * owner-bound rehydration; fact excerpts gain authority only by exact matching. */
 const object=properties=>({type:"object",additionalProperties:false,properties,required:Object.keys(properties)});
@@ -209,8 +210,8 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
      &&windows.every(r=>r.sources.length===1&&r.inspected===1&&r.queryScopeExhausted&&r.scopeExhausted
        &&!r.unmet?.length&&!r.hasMore&&!r.hasPrevious&&!r.truncated)
      &&rows.every(row=>row&&row.body.trim().length<=280&&completeSentence(row.body,row.body.trim()));
-   const failed=/I can read saved information, but|Which pet|couldn.t verify|could not reliably complete/i.test(answer.answer)
-     ||answer.replyType!=="answer"||task.status!=="complete"||task.sources.length<windows.length;
+   const failed=/I can read saved information, but|I can help with that|Which pet|couldn.t verify|could not reliably complete/i.test(answer.answer)
+     ||containsUnverifiedStateClaim(answer.answer)||answer.replyType!=="answer"||task.status!=="complete"||task.sources.length<windows.length;
    if(clean&&failed){
      const facts=rows.map(row=>row.petName+" - event "+row.eventAt.slice(0,10)+": “"+row.body.trim()+"”");
      return {...answer,answer:"Here’s what I found in the saved notes:\n"+facts.join("\n"),

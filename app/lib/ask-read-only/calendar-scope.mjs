@@ -42,12 +42,12 @@ export function recoverBoundedCalendarRead(first,context,pets){
  if(named.length!==1)return null;
  const safe=first.safety?.careContext==="none"&&first.safety.medicationIntent==="none"
   &&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length||first.safety.eventAssessments?.length)
-  &&first.safety.missingContext.every(k=>["pet","date"].includes(k));
+  &&first.safety.missingContext.every(k=>["pet","date","year","which_record"].includes(k));
  const tasks=first.taskPlan?.filter(t=>t.needsHistory);
  const taskBound=!!tasks?.length&&tasks.every(t=>t.kind==="saved_content"&&t.reference===null
   &&(t.pets.length===0&&t.missing.includes("pet")||t.pets.length===1&&t.pets[0]===named[0].handle)
   &&t.missing.every(k=>["pet","which_record","year"].includes(k)))
-  &&safe&&first.calls.length<=2&&first.calls.every(call=>call.name==="search_saved_records"
+  &&safe&&first.calls.length<=2&&first.calls.every(call=>["search_saved_records","read_pet_profile"].includes(call.name)
    &&(()=>{try{return JSON.parse(call.arguments).pet===named[0].handle;}catch{return false;}})());
  const legacy=first.calls.length<=1&&scopes.length===1&&first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"
   &&first.safety.missingContext.length>0&&first.safety.missingContext.every(k=>["pet","date"].includes(k))
