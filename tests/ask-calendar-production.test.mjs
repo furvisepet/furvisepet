@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {explicitCalendarScopes,recoverBoundedCalendarRead} from "../app/lib/ask-read-only/calendar-scope.mjs";
+import {explicitCalendarScopes,explicitRequestedTimeBasis,recoverBoundedCalendarRead} from "../app/lib/ask-read-only/calendar-scope.mjs";
 import {renderTaskCompletion} from "../app/lib/ask-read-only/task-components.mjs";
 
 const pets=[{handle:"p1",name:"QA Juniper 20Y"},{handle:"p2",name:"QA Willow 20Y"}];
@@ -74,4 +74,10 @@ test("a unique inspected window quotes the original note when generated prose is
  assert.equal(result.replyType,"answer");
  const incomplete=renderTaskCompletion(answer,[task],[source],null,[{...coverage[0],hasMore:true}]);
  assert.doesNotMatch(incomplete.answer,/Synthetic QA record/);
+});
+test("explicit event date is not an ambiguous recorded date",()=>{
+ assert.equal(explicitRequestedTimeBasis("Give the event date."),"event");
+ assert.equal(explicitRequestedTimeBasis("Give the saved date."),"recorded");
+ assert.equal(explicitRequestedTimeBasis("Give event and recorded dates."),null);
+ assert.equal(explicitRequestedTimeBasis("When did she stay there?"),null);
 });
