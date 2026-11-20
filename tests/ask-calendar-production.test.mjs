@@ -173,3 +173,57 @@ test("two saved-history tasks recover both exact bounded notes",()=>{
  const incomplete=renderTaskCompletion(answer,tasks,sources,null,[coverage[0],{...coverage[1],hasMore:true}],scopes);
  assert.notEqual(incomplete.verifiedSourceText,incomplete.answer);
 });
+
+test("saved event and day phrasing recovers an explicitly named year",()=>{
+ const selected={...first,historyIntent:{requested:false,timeBasis:"unknown",pet:null},
+  safety:{...safety,missingContext:["pet","year","date_meaning"]},
+  taskPlan:[{...task,pets:[],missing:["pet","year","date_meaning","which_record"]}],
+  calls:[]};
+ const question="In QA Juniper 20Y’s 2026 saved event, what weight is noted and what day belongs to it?";
+ const basis=explicitRequestedTimeBasis(question);
+ assert.equal(basis,"event");
+ const reconciled={...selected,historyIntent:{...selected.historyIntent,requested:true,timeBasis:basis},
+  taskPlan:selected.taskPlan.map(t=>({...t,missing:t.missing.filter(k=>k!=="date_meaning")}))};
+ const recovered=recoverBoundedCalendarRead(reconciled,{question},pets);
+ assert.ok(recovered);
+ assert.deepEqual(recovered.first.taskPlan[0].missing,["which_record"]);
+ assert.equal(JSON.parse(recovered.first.calls[0].arguments).from,"2026-01-01");
+ assert.equal(recoverBoundedCalendarRead(reconciled,{question:"What day was QA Juniper 20Y’s 2026 note saved?"},pets),null);
+});
+test("two requested years do not require choosing one saved result",()=>{
+ const sources=[
+  {handle:"s1",kind:"history",petName:"QA Saffron 20Y",eventAt:"2011-05-14T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Saffron changed to rabbit food."},
+  {handle:"s2",kind:"history",petName:"QA Saffron 20Y",eventAt:"2021-07-18T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Saffron stayed at the orchard cottage."}
+ ];
+ const coverage=sources.map((source,index)=>({scope:{kind:"history",pet:source.petName,
+  from:index?"2021-01-01":"2011-01-01",to:index?"2021-12-31":"2011-12-31"},
+  sources:[{source:source.handle}],inspected:1,unmet:[],hasMore:false,hasPrevious:false,truncated:false,
+  queryScopeExhausted:true,scopeExhausted:true}));
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"single",pets:["p1"],
+  status:"unresolved",reason:"missing_context",missing:["which_record"],componentIndexes:[],
+  sources:["s1","s2"],historyFacts:[],ownerFacts:[],includeSourceDates:true};
+ const answer={answer:"Which saved result should I use?",replyType:"clarification",sources:["s1","s2"],
+  quotes:[],presentation:{sourceDates:[]}};
+ const scopes=coverage.map(row=>({from:row.scope.from,to:row.scope.to}));
+ const result=renderTaskCompletion(answer,[task],sources,null,coverage,scopes);
+ assert.match(result.answer,/rabbit food/);assert.match(result.answer,/orchard cottage/);
+ assert.equal(result.taskCompletion[0].status,"complete");
+ assert.doesNotMatch(result.answer,/Which saved result/);
+ const oneYear=renderTaskCompletion(answer,[task],sources,null,coverage,[scopes[0]]);
+ assert.notEqual(oneYear.taskCompletion[0].status,"complete");
+});
+test("publication-changing historical wording uses the verified original",()=>{
+ const source={handle:"s1",kind:"history",petName:"QA Marigold 20Y",eventAt:"2011-05-14T19:00:00Z",
+  recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Marigold changed to salmon food; no rabbit food switch was recorded."};
+ const coverage=[{scope:{kind:"history",pet:source.petName,from:"2011-05-01",to:"2011-05-31"},
+  sources:[{source:"s1"}],inspected:1,unmet:[],hasMore:false,hasPrevious:false,truncated:false,
+  queryScopeExhausted:true,scopeExhausted:true}];
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"single",pets:["p1"],
+  status:"complete",reason:"none",missing:[],componentIndexes:[0],sources:["s1"],
+  historyFacts:[],ownerFacts:[],includeSourceDates:true};
+ const answer={answer:"The entry says Marigold changed to salmon food, and no rabbit food switch was recorded.",
+  replyType:"answer",sources:["s1"],quotes:[],presentation:{sourceDates:[]}};
+ const result=renderTaskCompletion(answer,[task],[source],null,coverage,[{from:"2011-05-01",to:"2011-05-31"}]);
+ assert.match(result.answer,/event 2011-05-14/);
+ assert.equal(result.verifiedSourceText,result.answer);
+});
