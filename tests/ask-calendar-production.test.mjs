@@ -151,6 +151,29 @@ test("a generated app execution claim yields exact bounded note instead",()=>{
  assert.equal(result.taskCompletion[0].status,"complete");
 });
 
+test("short-note recovery answers the present-state inference without changing source text",()=>{
+ const source={handle:"s1",kind:"history",petName:"Example Cat",eventAt:"2014-06-16T19:00:00Z",
+  recordedAt:"2026-11-19T00:00:00Z",body:"The cat slept in the sunroom during the visit."};
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"single",pets:["p1"],
+  status:"partial",reason:"not_answered",missing:[],componentIndexes:[0],sources:["s1"],
+  historyFacts:[],ownerFacts:[],includeSourceDates:false};
+ const answer={answer:"I couldn't complete the answer.",replyType:"partial",sources:["s1"],
+  quotes:[],presentation:{sourceDates:[]}};
+ const coverage=[{scope:{kind:"history",pet:source.petName,from:"2014-01-01",to:"2014-12-31"},
+  sources:[{source:"s1"}],inspected:1,unmet:[],hasMore:false,hasPrevious:false,truncated:false,
+  queryScopeExhausted:true,scopeExhausted:true}];
+ const scope=[{from:"2014-01-01",to:"2014-12-31"}];
+ const current=renderTaskCompletion(answer,[task],[source],null,coverage,scope,
+  "What did the old entry report, and can we assume it is still true?");
+ assert.match(current.answer,/sunroom during the visit/);
+ assert.match(current.answer,/past report; by itself, it cannot confirm what is true now/);
+ assert.equal(current.verifiedSourceText,
+  "The saved note for Example Cat about 2014-06-16 says: \u201cThe cat slept in the sunroom during the visit.\u201d");
+ const historical=renderTaskCompletion(answer,[task],[source],null,coverage,scope,
+  "What did the 2014 entry report?");
+ assert.equal(historical.answer,historical.verifiedSourceText);
+});
+
 test("two saved-history tasks recover both exact bounded notes",()=>{
  const sources=[
   {handle:"s1",kind:"history",petName:"QA Saffron 20Y",eventAt:"2011-05-14T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Saffron changed to rabbit food; no salmon switch was recorded."},
