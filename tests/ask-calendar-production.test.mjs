@@ -367,7 +367,8 @@ test("a sourced comparison keeps its undated synthesis and receives verified dat
  assert.match(result.answer,/event 2006-04-12/);
  assert.match(result.answer,/event 2021-07-18/);
  assert.equal(result.replyType,"answer");
- assert.equal(result.verifiedSourceText,undefined);
+ assert.match(result.verifiedSourceText,/violet collar/);
+ assert.match(result.verifiedSourceText,/beach cabin/);
 });
 
 test("an incidental non-history task cannot hide a complete two-period comparison",()=>{
@@ -402,6 +403,30 @@ test("an incidental non-history task cannot hide a complete two-period compariso
  const incomplete=renderTaskCompletion(answer,[saved,extra],sources,null,[coverage[0],{...coverage[1],hasMore:true}],scopes,
   "How do Saffron's 2011 and 2021 saved entries differ?");
  assert.equal(incomplete.verifiedSourceText,undefined);
+});
+
+test("a partially selected history fact fills the other fully checked window",()=>{
+ const sources=[
+  {handle:"s1",kind:"history",petName:"QA Saffron 20Y",eventAt:"2011-05-14T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Saffron changed to rabbit food; no turkey food switch was recorded."},
+  {handle:"s2",kind:"history",petName:"QA Saffron 20Y",eventAt:"2021-07-18T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Saffron stayed at the orchard cottage and avoided the lake house."}
+ ];
+ const scopes=[{from:"2011-01-01",to:"2011-12-31"},{from:"2021-01-01",to:"2021-12-31"}];
+ const coverage=sources.map((source,index)=>({scope:{kind:"history",pet:source.petName,...scopes[index]},
+  sources:[{source:source.handle}],inspected:1,unmet:[],hasMore:false,hasPrevious:false,truncated:false,queryScopeExhausted:true,scopeExhausted:true}));
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"],
+  status:"complete",reason:"none",missing:[],componentIndexes:[0],sources:["s1","s2"],
+  historyFacts:[{source:"s2",excerpt:sources[1].body}],ownerFacts:[],includeSourceDates:false};
+ const answer={answer:"These notes describe different situations rather than the same event.",
+  validatedParts:[{index:0,kind:"saved",text:"These notes describe different situations rather than the same event."}],
+  replyType:"answer",sources:["s1","s2"],quotes:[{source:"s1",quote:sources[0].body}],presentation:{sourceDates:[]}};
+ const result=renderTaskCompletion(answer,[task],sources,null,coverage,scopes,
+  "In Saffron's saved history, what was happening in 2011 versus 2021?");
+ assert.match(result.answer,/rabbit food/);assert.match(result.answer,/orchard cottage/);
+ assert.match(result.verifiedSourceText,/rabbit food/);
+ assert.match(result.verifiedSourceText,/orchard cottage/);
+ const partial=renderTaskCompletion(answer,[task],sources,null,[coverage[0],{...coverage[1],hasMore:true}],scopes,
+  "In Saffron's saved history, what was happening in 2011 versus 2021?");
+ assert.doesNotMatch(partial.verifiedSourceText??"",/rabbit food/);
 });
 
 test("a plain named profile lookup needs one owned profile read and one task",()=>{
