@@ -26,19 +26,13 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  const body=reviewed.answer;
  const coverageRows=(result as {coverage?:Array<{scope?:{kind?:string};unmet?:string[];hasMore?:boolean;hasPrevious?:boolean;truncated?:boolean;inspected?:number;returned?:number;queryScopeExhausted?:boolean}>}).coverage??[];
  const coverageMessages=readCoverageMessages(coverageRows);
- const smallLatest=(result as {queryShape?:string}).queryShape==="latest_saved_note"&&coverageRows.length===1
-  &&coverageRows[0].scope?.kind==="history"&&coverageRows[0].unmet?.length===0
-  &&coverageRows[0].inspected===1&&coverageRows[0].returned===1&&coverageRows[0].queryScopeExhausted===true
-  &&!coverageRows[0].hasMore&&!coverageRows[0].hasPrevious&&!coverageRows[0].truncated;
- if(smallLatest&&coverageMessages.length===1)coverageMessages[0]=
-  "Checked 1 saved-note candidate for this query. This does not establish all related history was found.";
  const dialogue=(result as {dialogueCoverage?:{partial?:boolean;omittedKnownMessages?:number;truncatedMessages?:number}}).dialogueCoverage;
  const contextMessages=dialogue?.partial===true&&body.presentation?.contextRequired!==false
   ?[dialogue.omittedKnownMessages||dialogue.truncatedMessages
    ?"Some earlier conversation text is outside Ask’s current context window. Repeat any older details you want me to use."
    :"Earlier conversation context may be incomplete. Repeat any older details you want me to use."]:[];
  const coverageSections=[
-  ...(coverageMessages.length?[{heading:"Search coverage",items:coverageMessages}]:[]),
+  ...(coverageMessages.length?[{heading:"What I checked",items:coverageMessages}]:[]),
   ...(contextMessages.length?[{heading:"Conversation context",items:contextMessages}]:[])
  ];
  const protectedText=(body as typeof body & {verifiedBriefText?:string;verifiedSourceText?:string}).verifiedBriefText

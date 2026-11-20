@@ -15,7 +15,7 @@ const note={kind:"history",id:"synthetic-note",ownerId:pet.ownerId,petId:pet.id,
  eventAt:"2026-10-31T10:00:00Z",recordedAt:"2026-10-31T12:00:00Z"};
 const input=question=>({ownerId:pet.ownerId,selectedPetId:pet.id,pets:[pet],dialogue:[],
  question,now:"2026-11-17T12:00:00Z",timeZone:"America/Vancouver"});
-test("verified single journal source fills empty date intro and displays concise but honest search scope",async()=>{
+test("verified single journal source fills empty date intro and keeps internal query accounting out of the answer",async()=>{
  const call={id:"c1",name:"search_saved_records",arguments:JSON.stringify({
   pet:"p1",from:null,to:null,query:null,offset:0,goal:"boundary",order:"desc",orderBy:"recorded"})};
  const result=await runReadOnlyAsk(input("What is the latest saved journal note? Give its date and quote."),{
@@ -28,11 +28,7 @@ test("verified single journal source fills empty date intro and displays concise
  const pub=buildReadOnlyPublication(result,pet.ownerId,pet.name);
  assert.match(pub.response.summary,/dated 2026-10-31\./);
  assert.ok(pub.response.sections.some(section=>section.heading==="Saved notes"&&section.items.includes(note.body)));
- const coverage=pub.response.sections.find(section=>section.heading==="Search coverage");
- assert.ok(coverage);
- assert.equal(coverage.items.length,1);
- assert.match(coverage.items[0],/Checked 1 saved-note candidate/);
- assert.match(coverage.items[0],/does not establish all related history/);
+ assert.equal(pub.response.sections.some(section=>section.heading==="Search coverage"||section.heading==="What I checked"),false);
  assert.ok(pub.response.citationProof);
  assert.deepEqual(pub.response.applicationActions,[]);
 });

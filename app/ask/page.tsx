@@ -24,6 +24,7 @@ import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import {
   buildGuidanceCareEntry,
   formatAskResponsePlainText,
+  publicAskSections,
   parseAskConversationResponse,
 } from "../lib/ask.mjs";
 import { buildAskRequestPayload, type AskRequestPayload } from "../lib/ask-request-contract";
@@ -857,7 +858,7 @@ function FurviseMessage({ lifecycleStatus, message, onAction, onApplicationActio
     {shouldShowAnswerHeading(response.title) ? <h2 className="text-xl font-semibold leading-8 text-[var(--pw-heading)]">{response.title}</h2> : null}
     <AskAnswerText afterHeading={shouldShowAnswerHeading(response.title)} text={response.directAnswer} />
     {response.supportingText ? <p className="mt-3 leading-7 text-[var(--pw-muted)]">{response.supportingText}</p> : null}
-    <AdaptiveSections answerType={response.answerType} sections={response.sections} />
+    <AdaptiveSections answerType={response.answerType} sections={publicAskSections(response.sections)} />
     {response.completionNotice ? <aside className="mt-4 rounded-xl border border-[var(--assistant-response-border)] bg-black/[0.018] px-3.5 py-3 text-sm text-[var(--text-secondary)]" data-answer-completion="limited"><p className="font-semibold text-[var(--text-primary)]">What I couldn’t confirm</p><p className="mt-1 leading-6">{response.completionNotice}</p></aside> : null}
     {actions.length ? <div className="mt-4 flex flex-wrap gap-2">{actions.map((action) => <button className={action === "copy" ? quietButton : secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
     {PUBLIC_V1_CAPABILITIES.askMutations && messageVariant !== "CASUAL" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
@@ -931,14 +932,6 @@ function shouldShowAnswerHeading(title: string) {
 
 function AdaptiveSections({ answerType, sections }: { answerType: AnswerType; sections: StructuredResponse["sections"] }) {
   if (!sections.length) return null;
-  const coverage = sections.filter(section => section.heading === "Search coverage");
-  if (coverage.length) return <>
-    <AdaptiveSections answerType={answerType} sections={sections.filter(section => section.heading !== "Search coverage")} />
-    <details className="mt-3 text-sm text-[var(--text-secondary)]" data-ui="search-coverage-details">
-      <summary className="cursor-pointer font-medium text-[var(--assistant-response-accent)] focus-visible:outline-2 focus-visible:outline-offset-4">Search details</summary>
-      <div className="mt-2 space-y-2 leading-6">{coverage.flatMap(section => section.items).map((item, index) => <p key={index}>{item}</p>)}</div>
-    </details>
-  </>;
   const savedNotes = sections.filter(section => section.heading === "Saved notes");
   if (savedNotes.length) return <>
     <AdaptiveSections answerType={answerType} sections={sections.filter(section => section.heading !== "Saved notes")} />
