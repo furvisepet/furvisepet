@@ -35,7 +35,7 @@ export function explicitRequestedTimeBasis(question){
  const recorded=/\b(?:save|saved|record|recorded) dates?\b/i.test(text);
  return event===recorded?null:event?"event":"recorded";
 }
-/** An unbound pronoun in a new conversation cannot inherit the UI pet. */
+/** Bind a fresh, dated pet-note pronoun to the selected pet only with one safe scope. */
 export function clarifyUnboundHistoryPronoun(first,context,pets){
  const question=String(context.question??"");
  if(context.dialogue?.length||context.references?.length
@@ -45,6 +45,24 @@ export function clarifyUnboundHistoryPronoun(first,context,pets){
  if(pets.some(pet=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(pet.name)+"(?![\\p{L}\\p{N}])","iu").test(question)))return first;
  const tasks=first.taskPlan;
  if(!tasks?.length||!tasks.every(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null))return first;
+ const selected=pets.find(pet=>pet.handle===context.selectedPet);
+ const scopes=explicitCalendarScopes(question);
+ const safe=first.safety?.careContext==="none"&&first.safety.medicationIntent==="none"
+  &&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length||first.safety.eventAssessments?.length)
+  &&first.safety.missingContext?.every(k=>["pet","date","year","which_record"].includes(k));
+ const notePronoun=/\b(?:her|his|their)\b.{0,80}\b(?:saved|note|record|entry)\b|\b(?:saved|note|record|entry)\b.{0,80}\b(?:her|his|their)\b/i.test(question);
+ const otherReferent=/\b(?:vet|veterinarian|doctor|friend|partner|wife|husband|mother|father|daughter|son)\b/i.test(question);
+ if(selected&&scopes.length===1&&notePronoun&&!otherReferent&&safe
+  &&first.calls.length<=2&&first.calls.every(call=>["search_saved_records","read_pet_profile"].includes(call.name))){
+  const scope=scopes[0],basis=explicitRequestedTimeBasis(question)??"event",event=basis==="event";
+  const args={pet:selected.handle,from:event?scope.from:null,to:event?scope.to:null,
+   goal:"exact_quote",alternatives:[],recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,
+   orderBy:basis,query:null,offset:0,order:"asc"};
+  return {...first,text:"",calls:[{id:"selected-pet-calendar-read",name:"search_saved_records",arguments:JSON.stringify(args)}],
+   historyIntent:{...first.historyIntent,requested:true,timeBasis:basis,pet:selected.handle},
+   safety:{...first.safety,referent:"clear",missingContext:[]},
+   taskPlan:tasks.map(t=>({...t,pets:[selected.handle],missing:t.missing.filter(k=>!["pet","year","date"].includes(k))}))};
+ }
  return {...first,text:"",calls:[],taskPlan:tasks.map(t=>({...t,pets:[],missing:[...new Set([...t.missing,"pet"])]}))};
 }
 export function recoverBoundedCalendarRead(first,context,pets){
