@@ -35,6 +35,18 @@ export function explicitRequestedTimeBasis(question){
  const recorded=/\b(?:save|saved|record|recorded) dates?\b/i.test(text);
  return event===recorded?null:event?"event":"recorded";
 }
+/** An unbound pronoun in a new conversation cannot inherit the UI pet. */
+export function clarifyUnboundHistoryPronoun(first,context,pets){
+ const question=String(context.question??"");
+ if(context.dialogue?.length||context.references?.length
+  ||!/\b(?:she|her|he|him|his|they|them|their)\b/i.test(question)
+  ||!/\b(?:what happened|history|saved|note|record|entry)\b/i.test(question))return first;
+ const escaped=name=>name.replace(/[.*+?$^{}()|[\]\\]/g,"\\$&");
+ if(pets.some(pet=>new RegExp("(?<![\\p{L}\\p{N}])"+escaped(pet.name)+"(?![\\p{L}\\p{N}])","iu").test(question)))return first;
+ const tasks=first.taskPlan;
+ if(!tasks?.length||!tasks.every(t=>t.kind==="saved_content"&&t.needsHistory&&t.reference===null))return first;
+ return {...first,text:"",calls:[],taskPlan:tasks.map(t=>({...t,pets:[],missing:[...new Set([...t.missing,"pet"])]}))};
+}
 export function recoverBoundedCalendarRead(first,context,pets){
  if(!["event","recorded"].includes(first.historyIntent?.timeBasis)||first.calls.length>2)return null;
  const scopes=explicitCalendarScopes(context.question);if(scopes.length<1||scopes.length>2)return null;
