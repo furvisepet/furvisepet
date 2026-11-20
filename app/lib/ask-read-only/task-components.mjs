@@ -231,10 +231,16 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
  });
  // One or two saved-history tasks can quote one complete short original per
  // fully inspected bounded window when generated prose omitted an answer.
- if(!policy?.active&&tasks.length>=1&&tasks.length<=2&&tasks.every(t=>t.kind==="saved_content"
+ const explicitComparison=requestedScopes.length===2
+   &&/\b(?:compare|differ|versus|vs|between|each|both)\b/i.test(question)
+   &&tasks.some(t=>t.kind==="saved_content"&&t.needsHistory&&t.pets?.length===1)
+   &&tasks.every(t=>["saved_content","general_guidance","clarification","workflow"].includes(t.kind));
+ const savedTasks=tasks.filter(t=>t.kind==="saved_content");
+ const ordinaryHistory=tasks.length>=1&&tasks.length<=2&&tasks.every(t=>t.kind==="saved_content"
    &&t.needsHistory&&t.pets?.length===1&&t.pets[0]===tasks[0].pets?.[0]
    &&(t.missing.length===0||requestedScopes.length>=1&&t.missing.every(k=>k==="which_record")))
-   &&(tasks.length===1||tasks.every(t=>t.sources.length))){
+   &&(tasks.length===1||tasks.every(t=>t.sources.length));
+ if(!policy?.active&&(ordinaryHistory||explicitComparison)){
    const windows=coverage.filter(r=>r.scope?.kind==="history"&&r.scope?.pet
      &&(r.scope.from&&r.scope.to||r.scope.recordedFrom&&r.scope.recordedTo));
    const rows=windows.map(r=>sources.find(s=>s.handle===r.sources?.[0]?.source&&s.kind==="history"&&s.petName===r.scope.pet));
@@ -252,14 +258,20 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
      ||new Set(tasks.flatMap(t=>t.sources)).size<windows.length
      ||rows.length===1&&tasks.some(t=>t.includeSourceDates)&&rows.some(row=>row&&!answer.answer.includes(row.eventAt.slice(0,10)));
    if(clean&&failed){
-     const facts=rows.map(row=>"The saved note for "+row.petName+" about "+row.eventAt.slice(0,10)+" says: "+String.fromCharCode(0x201c)+row.body.trim()+String.fromCharCode(0x201d));
+     const quoted=row=>String.fromCharCode(0x201c)+row.body.trim()+String.fromCharCode(0x201d);
+     const facts=rows.length===2
+       ?["The earlier saved entry for "+rows[0].petName+" ("+rows[0].eventAt.slice(0,10)+") says "+quoted(rows[0])+
+         " The later entry ("+rows[1].eventAt.slice(0,10)+") says "+quoted(rows[1])]
+       :rows.map(row=>"The saved note for "+row.petName+" about "+row.eventAt.slice(0,10)+" says: "+quoted(row));
      const verifiedSourceText=facts.join("\n");
+     const otherTasks=tasks.filter(t=>!savedTasks.includes(t));
      return {...answer,answer:verifiedSourceText,verifiedSourceText,
        sources:[...new Set([...answer.sources,...rows.map(row=>row.handle)])],
        quotes:[...new Map([...answer.quotes,...rows.map(row=>({source:row.handle,quote:row.body}))].map(q=>[q.source,q])).values()],
        presentation:{...answer.presentation,sourceDates:[],contextRequired:false},
-       taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:"complete",reason:"none",sourceCount:t.sources.length||rows.length})),
-       limited:false,replyType:"answer"};
+       taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:savedTasks.includes(t)?"complete":t.status,
+         reason:savedTasks.includes(t)?"none":t.reason,sourceCount:t.sources.length||rows.length})),
+       limited:otherTasks.some(t=>t.status!=="complete"),replyType:otherTasks.some(t=>t.status!=="complete")?"partial":"answer"};
    }
  }
  const blocked=new Set(tasks.filter(t=>t.status==="unresolved"||t.needsHistory&&!t.sources.length||t.needsOwnerFacts&&!t.ownerFacts.length).flatMap(t=>t.componentIndexes));

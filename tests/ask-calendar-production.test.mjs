@@ -370,6 +370,30 @@ test("a sourced comparison keeps its undated synthesis and receives verified dat
  assert.equal(result.verifiedSourceText,undefined);
 });
 
+test("an incidental non-history task cannot hide a complete two-period comparison",()=>{
+ const sources=[
+  {handle:"s1",kind:"history",petName:"QA Saffron 20Y",eventAt:"2011-05-14T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Saffron changed to rabbit food."},
+  {handle:"s2",kind:"history",petName:"QA Saffron 20Y",eventAt:"2021-07-18T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Saffron stayed at the orchard cottage."}
+ ];
+ const scopes=[{from:"2011-01-01",to:"2011-12-31"},{from:"2021-01-01",to:"2021-12-31"}];
+ const coverage=sources.map((source,index)=>({scope:{kind:"history",pet:source.petName,...scopes[index]},
+  sources:[{source:source.handle}],inspected:1,unmet:[],hasMore:false,hasPrevious:false,truncated:false,queryScopeExhausted:true,scopeExhausted:true}));
+ const saved={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p1"],
+  status:"partial",reason:"not_answered",missing:[],componentIndexes:[0],sources:["s2"],historyFacts:[],ownerFacts:[],includeSourceDates:false};
+ const extra={id:"t2",kind:"general_guidance",needsHistory:false,recordMode:"none",pets:[],
+  status:"complete",reason:"none",missing:[],componentIndexes:[1],sources:[],historyFacts:[],ownerFacts:[],includeSourceDates:false};
+ const answer={answer:"I can read saved information, but I can't make changes or open pages through Ask.",
+  replyType:"partial",sources:["s2"],quotes:[{source:"s2",quote:sources[1].body}],presentation:{sourceDates:[]}};
+ const result=renderTaskCompletion(answer,[saved,extra],sources,null,coverage,scopes,
+  "How do Saffron's 2011 and 2021 saved entries differ?");
+ assert.match(result.answer,/rabbit food/);assert.match(result.answer,/orchard cottage/);
+ assert.doesNotMatch(result.answer,/I can read saved information/);
+ assert.equal(result.taskCompletion[0].status,"complete");
+ const incomplete=renderTaskCompletion(answer,[saved,extra],sources,null,[coverage[0],{...coverage[1],hasMore:true}],scopes,
+  "How do Saffron's 2011 and 2021 saved entries differ?");
+ assert.equal(incomplete.verifiedSourceText,undefined);
+});
+
 test("a plain named profile lookup needs one owned profile read and one task",()=>{
  const q="Tell me Dune's saved profile age and current food, briefly.";
  const pet={handle:"dune",name:"Dune"};
@@ -450,4 +474,18 @@ test("plain two-year history comparison reconciles a misplanned task and reads b
  assert.match(result.answer.answer,/event 2011-05-14/);
  assert.match(result.answer.answer,/event 2021-07-18/);
  assert.equal(result.answer.replyType,"answer");
+ const oneSided=await runReadOnlyAsk({ownerId,selectedPetId:pet.id,pets:[pet],question:q,
+  dialogue:[],now:"2026-11-20T12:00:00Z",timeZone:"America/Vancouver"},{
+  provider:async(request,phase)=>phase==="read_selection"?selection:{
+   presentation:{sourceDates:[],contextRequired:false},
+   components:[{kind:"saved",text:"I can read saved information, but I can't make changes or open pages through Ask.",sources:["s2"]}],
+   quotes:["s2"],sources:["s2"],calculations:[],replyType:"partial",
+   completion:[{task:"t1",status:"partial",reason:"not_answered",componentIndexes:[0],sources:["s2"],ownerFacts:[],historyFacts:[]}],
+   clinicalReview:{assessment:initialSafety,ownerStatementRefs:[],observationFields:[]},appHelp:{intent:"none",pet:null}},
+  read:async request=>{const row=notes.find(n=>n.eventAt.startsWith(request.from.slice(0,4)));return {sources:row?[row]:[],total:row?1:0,hasMore:false,scopeExhausted:true,inspected:row?1:0};}
+ });
+ assert.match(oneSided.answer.answer,/Marigold switched to salmon food/);
+ assert.match(oneSided.answer.answer,/Marigold stayed at the lake house/);
+ assert.doesNotMatch(oneSided.answer.answer,/I can read saved information/);
+ assert.equal(oneSided.answer.replyType,"answer");
 });
