@@ -542,3 +542,30 @@ test("verified short notes become direct dated sentences when model prose is emp
  const partial=renderTaskCompletion(answer,[{...tasks[0],status:"partial"}],sources,null,[]);
  assert.doesNotMatch(partial.answer,/On 2013-03-04/);
 });
+
+test("continuous history years include the interval while dated entries remain two reads",()=>{
+ const span="What changes in QA Juniper 20Y's routine are documented between 2010 and 2020?";
+ assert.deepEqual(explicitCalendarScopes(span),[{from:"2010-01-01",to:"2020-12-31",precision:"interval"}]);
+ const recovered=recoverBoundedCalendarRead(first,{question:span},pets);
+ assert.ok(recovered);assert.equal(recovered.first.calls.length,1);
+ const args=JSON.parse(recovered.first.calls[0].arguments);
+ assert.equal(args.pet,"p1");assert.equal(args.from,"2010-01-01");assert.equal(args.to,"2020-12-31");assert.equal(args.goal,"complete_set");
+ assert.equal(recovered.first.taskPlan[0].recordMode,"collection");assert.deepEqual(recovered.first.taskPlan[0].missing,[]);
+ const endpoints="Between 2010 and 2020 journal entries, what does each one say about QA Juniper 20Y?";
+ assert.equal(explicitCalendarScopes(endpoints).length,2);
+ assert.equal(recoverBoundedCalendarRead(first,{question:endpoints},pets).first.calls.length,2);
+ assert.deepEqual(explicitCalendarScopes("Show QA Juniper 20Y's notes from 2012 through 2018."),
+  [{from:"2012-01-01",to:"2018-12-31",precision:"interval"}]);
+});
+
+test("a saved entry with an event-date request has one event axis",()=>{
+ const question="Which object did Juniper favor in the 2016 saved entry, and what was its event date?";
+ assert.equal(explicitRequestedTimeBasis(question),"event");
+ const recovered=recoverBoundedCalendarRead(first,{question},pets);
+ assert.ok(recovered);
+ const args=JSON.parse(recovered.first.calls[0].arguments);
+ assert.equal(args.pet,"p1");assert.equal(args.from,"2016-01-01");assert.equal(args.to,"2016-12-31");
+ assert.equal(args.recordedFrom,null);assert.equal(recovered.first.calls.length,1);
+ assert.equal(explicitRequestedTimeBasis("Give the event and recorded dates."),null);
+ assert.equal(recoverBoundedCalendarRead(first,{question:"Give the event and recorded dates for QA Juniper 20Y in 2016."},pets),null);
+});
