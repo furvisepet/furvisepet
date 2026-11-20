@@ -931,6 +931,14 @@ function shouldShowAnswerHeading(title: string) {
 
 function AdaptiveSections({ answerType, sections }: { answerType: AnswerType; sections: StructuredResponse["sections"] }) {
   if (!sections.length) return null;
+  const coverage = sections.filter(section => section.heading === "Search coverage");
+  if (coverage.length) return <>
+    <AdaptiveSections answerType={answerType} sections={sections.filter(section => section.heading !== "Search coverage")} />
+    <details className="mt-3 text-sm text-[var(--text-secondary)]" data-ui="search-coverage-details">
+      <summary className="cursor-pointer font-medium text-[var(--assistant-response-accent)] focus-visible:outline-2 focus-visible:outline-offset-4">Search details</summary>
+      <div className="mt-2 space-y-2 leading-6">{coverage.flatMap(section => section.items).map((item, index) => <p key={index}>{item}</p>)}</div>
+    </details>
+  </>;
   const savedNotes = sections.filter(section => section.heading === "Saved notes");
   if (savedNotes.length) return <>
     <AdaptiveSections answerType={answerType} sections={sections.filter(section => section.heading !== "Saved notes")} />

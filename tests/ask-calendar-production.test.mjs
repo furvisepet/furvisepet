@@ -224,7 +224,7 @@ test("publication-changing historical wording uses the verified original",()=>{
  const answer={answer:"The entry says Marigold changed to salmon food, and no rabbit food switch was recorded.",
   replyType:"answer",sources:["s1"],quotes:[],presentation:{sourceDates:[]}};
  const result=renderTaskCompletion(answer,[task],[source],null,coverage,[{from:"2011-05-01",to:"2011-05-31"}]);
- assert.match(result.answer,/event 2011-05-14/);
+ assert.match(result.answer,/about 2011-05-14/);
  assert.equal(result.verifiedSourceText,result.answer);
 });
 
