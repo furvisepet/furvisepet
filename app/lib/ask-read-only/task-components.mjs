@@ -212,7 +212,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
    const failed=/I can read saved information, but|Which pet|couldn.t verify|could not reliably complete/i.test(answer.answer)
      ||answer.replyType!=="answer"||task.status!=="complete"||task.sources.length<windows.length;
    if(clean&&failed){
-     const facts=rows.map(row=>row.petName+" — event "+row.eventAt.slice(0,10)+": “"+row.body.trim()+"”");
+     const facts=rows.map(row=>row.petName+" - event "+row.eventAt.slice(0,10)+": “"+row.body.trim()+"”");
      return {...answer,answer:"Here’s what I found in the saved notes:\n"+facts.join("\n"),
        sources:[...new Set([...answer.sources,...rows.map(row=>row.handle)])],
        quotes:[...new Map([...answer.quotes,...rows.map(row=>({source:row.handle,quote:row.body}))].map(q=>[q.source,q])).values()],
