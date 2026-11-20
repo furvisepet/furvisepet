@@ -165,6 +165,22 @@ function undatedCollectionSynthesis(text){
  // only a date substring can leave a misleading or malformed fragment.
  return text.split(/(?<=[.!?])\s+/).filter(sentence=>!countClaim.test(sentence)&&!calendar.test(sentence)).join(" ").trim();
 }
+// A fully inspected single-note window can supply its original sentence when
+// the model omitted historyFacts. Never paraphrase an unverified candidate.
+function uniqueWindowFacts(task,sources,coverage){
+ if(!task.sources.length||task.historyFacts.length)return [];
+ const rows=task.sources.map(handle=>sources.find(s=>s.handle===handle&&s.kind==="history"));
+ if(rows.some(row=>!row)||new Set(rows.map(row=>row.petName)).size!==1)return [];
+ const windows=coverage.filter(r=>r.scope?.pet===rows[0].petName&&r.scope?.kind==="history"
+  &&(r.scope.from&&r.scope.to||r.scope.recordedFrom&&r.scope.recordedTo));
+ if(windows.length!==rows.length||windows.some(r=>r.sources.length!==1||r.inspected!==1
+  ||r.unmet?.length||r.hasMore||r.hasPrevious||r.truncated||!r.queryScopeExhausted||!r.scopeExhausted))return [];
+ if(new Set(windows.map(r=>r.sources[0].source)).size!==rows.length
+  ||windows.some(r=>!task.sources.includes(r.sources[0].source)))return [];
+ const excerpts=rows.map(row=>row.body.trim());
+ if(excerpts.some((excerpt,index)=>excerpt.length>280||!completeSentence(rows[index].body,excerpt)))return [];
+ return rows.map((row,index)=>({source:row.handle,excerpt:excerpts[index]}));
+}
 const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
 export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  if(!tasks)return answer;
@@ -187,14 +203,18 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
  const brief=tasks.find(t=>t.kind==="vet_brief"),clarify=tasks.filter(t=>t.missing.length);
  const collectionTasks=tasks.filter(t=>t.needsHistory&&t.recordMode==="collection"&&["saved_content","saved_continuation"].includes(t.kind));
  const collectionParts=new Set(collectionTasks.flatMap(t=>t.componentIndexes));
- const selectedDatedFacts=collectionTasks.flatMap(t=>t.historyFacts).slice(0,6);
+ const fallback=new Map(collectionTasks.map(t=>[t,uniqueWindowFacts(t,sources,coverage)]));
+ const selectedDatedFacts=collectionTasks.flatMap(t=>[...t.historyFacts,...fallback.get(t)]).slice(0,6);
+ const fallbackParts=new Set(collectionTasks.filter(t=>fallback.get(t).length).flatMap(t=>t.componentIndexes)
+  .filter(index=>!tasks.some(t=>!collectionTasks.includes(t)&&t.componentIndexes.includes(index))));
  let removedCalendar=false;
  let text=!policy?.active&&answer.validatedParts?answer.validatedParts.filter(p=>assigned.has(p.index)&&!blocked.has(p.index)&&!calculationParts.has(p.index)).map(p=>{
   if(!collectionParts.has(p.index))return p.text;
+  if(fallbackParts.has(p.index))return "";
   const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
  }).filter(Boolean).join("\n\n"):answer.answer,verifiedBriefText=null;
  if(!policy?.active&&!brief&&selectedDatedFacts.length){
-  text+="\n\nSelected dated historical details:\n"+[...new Set(selectedDatedFacts.map(f=>{
+  text+="\n\nHere’s what I found in the saved notes:\n"+[...new Set(selectedDatedFacts.map(f=>{
    const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
    return "• "+s.petName+"  -  event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+": “"+f.excerpt+"”";
   }))].join("\n");

@@ -58,3 +58,20 @@ test("two restrictive model calls recover as two bounded year reads",()=>{
  assert.equal(recovered.first.calls.length,2);
  assert.deepEqual(recovered.first.calls.map(c=>JSON.parse(c.arguments).query),[null,null]);
 });
+test("a unique inspected window quotes the original note when generated prose is generic",()=>{
+ const source={handle:"s1",kind:"history",petName:"QA Marigold 20Y",eventAt:"2011-05-14T19:00:00Z",
+  recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Marigold switched to salmon food."};
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"collection",status:"complete",reason:"none",
+  missing:[],componentIndexes:[0],sources:["s1"],historyFacts:[],ownerFacts:[],includeSourceDates:true};
+ const answer={answer:"",validatedParts:[{index:0,text:"I can read saved information, but I can't make changes or open pages through Ask."}],presentation:{sourceDates:[]}};
+ const coverage=[{scope:{kind:"history",pet:source.petName,from:"2011-01-01",to:"2011-12-31"},
+  sources:[{source:"s1"}],inspected:1,unmet:[],hasMore:false,hasPrevious:false,truncated:false,
+  queryScopeExhausted:true,scopeExhausted:true}];
+ const result=renderTaskCompletion(answer,[task],[source],null,coverage);
+ assert.match(result.answer,/Marigold switched to salmon food/);
+ assert.match(result.answer,/event 2011-05-14/);
+ assert.doesNotMatch(result.answer,/can't make changes/);
+ assert.equal(result.replyType,"answer");
+ const incomplete=renderTaskCompletion(answer,[task],[source],null,[{...coverage[0],hasMore:true}]);
+ assert.doesNotMatch(incomplete.answer,/Synthetic QA record/);
+});
