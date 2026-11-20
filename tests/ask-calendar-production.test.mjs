@@ -243,6 +243,24 @@ test("new conversation asks which pet an unbound pronoun means",()=>{
  assert.equal(clarifyUnboundHistoryPronoun(selected,{...context,dialogue:[{role:"user",text:"I mean Juniper."}]},pets),selected);
 });
 
+test("fresh dated saved-note pronoun uses the selected pet and bounded year",()=>{
+ const selected={...first,text:"Which pet?",safety:{...safety,missingContext:["pet"]},
+  taskPlan:[{...task,pets:[],missing:["pet","which_record"]}],
+  calls:[{id:"wrong-pet",name:"search_saved_records",arguments:JSON.stringify({pet:"p2"})}]};
+ const context={question:"What did her saved note from 2006 say?",selectedPet:"p1",dialogue:[],references:[]};
+ const bound=clarifyUnboundHistoryPronoun(selected,context,pets);
+ assert.deepEqual(bound.taskPlan[0].pets,["p1"]);
+ assert.deepEqual(bound.taskPlan[0].missing,["which_record"]);
+ assert.equal(bound.safety.referent,"clear");
+ assert.deepEqual(JSON.parse(bound.calls[0].arguments),{
+  pet:"p1",from:"2006-01-01",to:"2006-12-31",goal:"exact_quote",alternatives:[],
+  recordedFrom:null,recordedTo:null,orderBy:"event",query:null,offset:0,order:"asc"
+ });
+ const competing=clarifyUnboundHistoryPronoun(selected,{...context,question:"What did her vet's saved note from 2006 say?"},pets);
+ assert.deepEqual(competing.calls,[]);
+ assert.deepEqual(competing.taskPlan[0].missing,["pet","which_record"]);
+});
+
 test("unbound history pronoun publishes a pointed pet clarification",()=>{
  const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"single",pets:[],
   status:"unresolved",reason:"source_unavailable",missing:["pet"],componentIndexes:[],
