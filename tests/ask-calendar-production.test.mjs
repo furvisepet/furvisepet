@@ -304,3 +304,17 @@ test("a saved note from a historical year does not mean it was saved then",()=>{
  const args=JSON.parse(recovered.first.calls[0].arguments);
  assert.equal(args.from,"2006-01-01");assert.equal(args.recordedFrom,null);
 });
+test("partial history says the limit once without internal verification phrasing",()=>{
+ const source={handle:"s1",kind:"history",petName:"QA Willow 20Y",eventAt:"2021-07-18T12:00:00Z",
+  recordedAt:"2026-11-19T12:00:00Z",body:"Willow played indoors."};
+ const task={id:"t1",kind:"saved_content",needsHistory:true,recordMode:"collection",pets:["p2"],
+  status:"complete",reason:"none",missing:[],componentIndexes:[0],sources:["s1"],historyFacts:[],ownerFacts:[],includeSourceDates:false};
+ const answer={answer:"",validatedParts:[{index:0,text:"The returned notes describe indoor play. The search was partial."}],
+  presentation:{sourceDates:[]},quotes:[]};
+ const coverage=[{scope:{kind:"history",pet:source.petName,goal:"complete_set"},sources:[{source:"s1"}],
+  omitted:1,unmet:["evidence_omitted"],hasMore:false,hasPrevious:false,truncated:true}];
+ const result=renderTaskCompletion(answer,[task],[source],null,coverage);
+ assert.match(result.answer,/search was partial/);
+ assert.doesNotMatch(result.answer,/source bodies|generated date-specific|Saved history:/);
+ assert.equal(result.taskCompletion[0].status,"partial");
+});
