@@ -85,6 +85,41 @@ export function clarifyUnboundHistoryPronoun(first,context,pets){
  }
  return {...first,text:"",calls:[],taskPlan:tasks.map(t=>({...t,pets:[],missing:[...new Set([...t.missing,"pet"])]}))};
 }
+/** Recover a plain comparison of two explicit saved-history periods when
+ * the model has mislabeled the task or requested only one side. This is a
+ * read-only owner-scoped retrieval plan, not a factual answer. */
+export function recoverExplicitHistoryComparison(first,context,pets){
+ const question=String(context.question??""),scopes=explicitCalendarScopes(question);
+ if(scopes.length!==2||!/(?<![\p{L}\p{N}])(?:notes?|entries|records?|history|journal)(?![\p{L}\p{N}])/iu.test(question)
+  ||!/\b(?:compare|differ|versus|vs|between|each|both)\b/i.test(question)
+  ||/\b(?:delete|remove|edit|update|add|write|create|correct)\b/i.test(question)
+  ||/\b(?:save|record)\s+(?:a|an|the|this|it|my)\b/i.test(question)
+  ||/\b(?:how (?:do|can) I|how to|where (?:do|can) I|steps? to)\b/i.test(question))return null;
+ const named=namedPetsForHistory(question,pets);
+ if(named.length!==1||!first.taskPlan?.length||first.calls.length>4)return null;
+ const safety=first.safety;
+ if(safety?.careContext!=="none"||safety.medicationIntent!=="none"
+  ||safety.currentEvents?.length||safety.conditionalEvents?.length||safety.eventAssessments?.length
+  ||safety.missingContext?.some(key=>!["pet","date","year","date_meaning","which_record"].includes(key)))return null;
+ if(!first.taskPlan.every(t=>["saved_content","general_guidance","clarification","workflow"].includes(t.kind)))return null;
+ if(first.calls.some(call=>{
+  if(!["search_saved_records","read_pet_profile"].includes(call.name))return true;
+  try{return JSON.parse(call.arguments).pet!==named[0].handle;}catch{return true;}
+ }))return null;
+ const basis=requestedHistoryTimeBasis(question),event=basis==="event";
+ const original=first.taskPlan.find(t=>t.kind==="saved_content")??first.taskPlan[0];
+ const task={...original,kind:"saved_content",needsHistory:true,needsOwnerFacts:false,
+  recordMode:"collection",workflow:"none",pets:[named[0].handle],reference:null,missing:[]};
+ const calls=scopes.map((scope,index)=>({id:"comparison-read-"+index,name:"search_saved_records",arguments:JSON.stringify({
+  pet:named[0].handle,from:event?scope.from:null,to:event?scope.to:null,goal:"comparison",alternatives:[],
+  recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,orderBy:basis,query:null,offset:0,order:"asc"
+ })}));
+ return {first:{...first,text:"",calls,taskPlan:[task],
+  historyIntent:{...first.historyIntent,requested:true,timeBasis:basis,pet:named[0].handle},
+  safety:{...safety,referent:"clear",missingContext:[]}},
+  diagnostic:{precision:scopes.map(s=>s.precision).join(","),scopeCount:2,timeBasis:basis,
+   reason:"explicit_owned_history_comparison"}};
+}
 export function recoverBoundedCalendarRead(first,context,pets){
  if(first.calls.length>2)return null;
  // A question naming both axes genuinely needs the plan's explicit scope.
