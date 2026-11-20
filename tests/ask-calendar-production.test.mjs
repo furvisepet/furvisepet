@@ -149,3 +149,27 @@ test("a generated app execution claim yields exact bounded note instead",()=>{
  assert.doesNotMatch(result.answer,/opened the history page|I can help with that/);
  assert.equal(result.taskCompletion[0].status,"complete");
 });
+
+test("two saved-history tasks recover both exact bounded notes",()=>{
+ const sources=[
+  {handle:"s1",kind:"history",petName:"QA Saffron 20Y",eventAt:"2011-05-14T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Saffron changed to rabbit food; no salmon switch was recorded."},
+  {handle:"s2",kind:"history",petName:"QA Saffron 20Y",eventAt:"2021-07-18T19:00:00Z",recordedAt:"2026-11-19T00:00:00Z",body:"Synthetic QA record: Saffron stayed at the orchard cottage and avoided the lake house."}
+ ];
+ const coverage=sources.map((source,index)=>({scope:{kind:"history",pet:source.petName,
+  from:index?"2021-01-01":"2011-01-01",to:index?"2021-12-31":"2011-12-31"},
+  sources:[{source:source.handle}],inspected:1,unmet:[],hasMore:false,hasPrevious:false,truncated:false,
+  queryScopeExhausted:true,scopeExhausted:true}));
+ const tasks=sources.map((source,index)=>({id:"t"+(index+1),kind:"saved_content",needsHistory:true,
+  recordMode:"single",pets:["p1"],status:"partial",reason:"not_answered",missing:[],
+  componentIndexes:[index],sources:[source.handle],historyFacts:[],ownerFacts:[],includeSourceDates:true}));
+ const answer={answer:"I can read saved information, but I can’t make changes or open pages through Ask.",
+  replyType:"partial",sources:["s2"],quotes:[],presentation:{sourceDates:[]}};
+ const scopes=coverage.map(row=>({from:row.scope.from,to:row.scope.to}));
+ const result=renderTaskCompletion(answer,tasks,sources,null,coverage,scopes);
+ assert.match(result.answer,/rabbit food/);assert.match(result.answer,/orchard cottage/);
+ assert.match(result.answer,/2011-05-14/);assert.match(result.answer,/2021-07-18/);
+ assert.equal(result.verifiedSourceText,result.answer);
+ assert.deepEqual(result.taskCompletion.map(t=>t.status),["complete","complete"]);
+ const incomplete=renderTaskCompletion(answer,tasks,sources,null,[coverage[0],{...coverage[1],hasMore:true}],scopes);
+ assert.notEqual(incomplete.verifiedSourceText,incomplete.answer);
+});
