@@ -240,7 +240,12 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
    &&t.needsHistory&&t.pets?.length===1&&t.pets[0]===tasks[0].pets?.[0]
    &&(t.missing.length===0||requestedScopes.length>=1&&t.missing.every(k=>k==="which_record")))
    &&(tasks.length===1||tasks.every(t=>t.sources.length));
- if(!policy?.active&&(ordinaryHistory||explicitComparison)){
+ // A model may call an old-record comparison a current concern without any
+ // current event or care task. Keep the original notes available in that case.
+ // Genuine medication, event, and vet-summary decisions retain their policy.
+ const historicalComparisonPolicy=explicitComparison&&!policy?.decision
+   &&!policy?.current?.length&&!policy?.conditional?.length&&!policy?.summaryContext;
+ if((!policy?.active||historicalComparisonPolicy)&&(ordinaryHistory||explicitComparison)){
    const windows=coverage.filter(r=>r.scope?.kind==="history"&&r.scope?.pet
      &&(r.scope.from&&r.scope.to||r.scope.recordedFrom&&r.scope.recordedTo));
    const rows=windows.map(r=>sources.find(s=>s.handle===r.sources?.[0]?.source&&s.kind==="history"&&s.petName===r.scope.pet));
