@@ -2,7 +2,7 @@ import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
-import { explicitCalendarScopes, explicitRequestedTimeBasis, recoverBoundedCalendarRead,clarifyUnboundHistoryPronoun } from "./calendar-scope.mjs";
+import { explicitCalendarScopes, explicitRequestedTimeBasis, recoverBoundedCalendarRead,clarifyUnboundHistoryPronoun,namedPetsForHistory } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
@@ -21,6 +21,26 @@ export function requiresSelectedPetContext(question,selectedPet) {
   if(boundary(index-1)&&boundary(index+token.length)){named=true;break;}
  }
  return named&&/\b(?:what (?:do )?(?:(?:you|u) )?think (?:of|about)|what(?:'s| is) your (?:opinion|impression) (?:of|about)|tell me about|what do you know about|describe|how (?:is|has) (?:my|our|the))\b/i.test(question);
+}
+/** Reconcile a plain current-profile lookup to its uniquely named owned pet.
+ * This does not handle historical comparisons, clinical interpretation or actions. */
+export function reconcileNamedProfileRead(first,context,pets){
+ const question=String(context.question??"");
+ if(!/\bprofile\b/i.test(question)||!/\b(?:age|food|breed|weight|species|sex|birthday|preference|preferences)\b/i.test(question)
+  ||/\b(?:note|journal|history|record|entry|event|compare|versus|changed|before|after|past|safe|healthy|should|medicine|medication|symptom)\b/i.test(question)
+  ||explicitCalendarScopes(question).length)return null;
+ const named=namedPetsForHistory(question,pets);if(named.length!==1||!first.taskPlan?.length)return null;
+ const safety=first.safety;
+ if(safety?.careContext!=="none"||safety.medicationIntent!=="none"
+  ||safety.currentEvents?.length||safety.conditionalEvents?.length||safety.eventAssessments?.length
+  ||safety.missingContext?.some(key=>key!=="pet"&&key!=="which_record"))return null;
+ if(!first.taskPlan.every(t=>["saved_content","general_guidance","clarification"].includes(t.kind)))return null;
+ const original=first.taskPlan.find(t=>t.kind==="saved_content")??first.taskPlan[0];
+ const task={...original,kind:"saved_content",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,
+  recordMode:"single",workflow:"none",pets:[named[0].handle],reference:null,missing:[]};
+ return {...first,text:"",taskPlan:[task],
+  safety:{...safety,referent:"clear",missingContext:[]},
+  calls:[{id:"named-profile-read",name:"read_pet_profile",arguments:JSON.stringify({pet:named[0].handle})}]};
 }
 /** An explicit latest saved note request for the currently authorized named pet
  * cannot depend entirely on the model opting into a read. No fuzzy pet matching,
@@ -303,7 +323,7 @@ export async function runReadOnlyAsk(input,deps) {
    pets:[latestNamedNotePet.handle],reference:null,
    missing:t.missing.filter(k=>!["pet","year","date_meaning","which_record"].includes(k))}:t);
  }
- if(taskPlan){first.taskPlan=taskPlan;first=clarifyUnboundHistoryPronoun(first,context,pets);first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
+ if(taskPlan){first.taskPlan=taskPlan;first=reconcileNamedProfileRead(first,context,pets)??first;first=clarifyUnboundHistoryPronoun(first,context,pets);first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  const explicitBasis=explicitRequestedTimeBasis(context.question);
  if(explicitBasis&&taskPlan?.some(t=>t.needsHistory&&t.kind==="saved_content")){
   taskPlan=taskPlan.map(t=>t.needsHistory?{...t,includeSourceDates:true,missing:t.missing.filter(k=>k!=="date_meaning")}:t);

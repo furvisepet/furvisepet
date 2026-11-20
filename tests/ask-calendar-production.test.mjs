@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {explicitCalendarScopes,explicitRequestedTimeBasis,recoverBoundedCalendarRead,clarifyUnboundHistoryPronoun,namedPetsForHistory} from "../app/lib/ask-read-only/calendar-scope.mjs";
+import {reconcileNamedProfileRead} from "../app/lib/ask-read-only/core.mjs";
 import {renderTaskCompletion} from "../app/lib/ask-read-only/task-components.mjs";
 
 const pets=[{handle:"p1",name:"QA Juniper 20Y"},{handle:"p2",name:"QA Willow 20Y"}];
@@ -367,4 +368,21 @@ test("a sourced comparison keeps its undated synthesis and receives verified dat
  assert.match(result.answer,/event 2021-07-18/);
  assert.equal(result.replyType,"answer");
  assert.equal(result.verifiedSourceText,undefined);
+});
+
+test("a plain named profile lookup needs one owned profile read and one task",()=>{
+ const q="Tell me Dune's saved profile age and current food, briefly.";
+ const pet={handle:"dune",name:"Dune"};
+ const selection={calls:[],text:"Which pet should I use?",safety:{...safety,missingContext:["pet"]},
+  taskPlan:[{...task,id:"t1",pets:[],missing:["pet"]},
+   {id:"t2",kind:"general_guidance",needsHistory:false,recordMode:"none",pets:[],missing:[]}]};
+ const fixed=reconcileNamedProfileRead(selection,{question:q},[pet]);
+ assert.ok(fixed);
+ assert.equal(fixed.taskPlan.length,1);
+ assert.deepEqual(fixed.taskPlan[0].pets,["dune"]);
+ assert.deepEqual(fixed.taskPlan[0].missing,[]);
+ assert.equal(fixed.calls[0].name,"read_pet_profile");
+ assert.deepEqual(JSON.parse(fixed.calls[0].arguments),{pet:"dune"});
+ assert.equal(reconcileNamedProfileRead(selection,{question:"What does Dune's profile say about food history?"},[pet]),null);
+ assert.equal(reconcileNamedProfileRead(selection,{question:"Is Dune's food safe based on the profile?"},[pet]),null);
 });
