@@ -95,13 +95,19 @@ export function parseAskConversationResponse(value) {
     : [];
   const allowedActions = new Set(ASK_ACTIONS_BY_TYPE[answerType]);
   const actions = Array.isArray(draft.actions) ? draft.actions.filter((action) => allowedActions.has(action)).slice(0, 4) : [];
+  // A broad search can be partial while every requested task was answered.
+  // Keep the scope accounting in Search details without a false generic banner.
+  const allReadTasksComplete = Array.isArray(draft.readOnlyTaskCompletion)
+    && draft.readOnlyTaskCompletion.length > 0
+    && draft.readOnlyTaskCompletion.every((task) => task?.status === "complete");
   return {
     ...response,
     answerType,
     directAnswer: response.summary,
     // Completion is settled by the server, not inferred from fluent prose.
     // Keep this product status outside the reviewed body and structured data.
-    ...(answerType !== "clarification" && draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited"
+    ...(answerType !== "clarification" && !allReadTasksComplete
+      && draft.turn?.finalStage === "COMPLETED" && draft.turn.answerOutcome === "limited"
       && !/\b(?:can['’]?t|cannot|couldn['’]?t|could not|don['’]?t see|do not see|not recorded|not in (?:the )?(?:file|notes?|records?)|missing|does not tell me|not enough (?:information|history|records?))\b/i.test(response.summary)
       ? { completionNotice: "I could not reliably complete every part of this answer." } : {}),
     supportingText: typeof draft.supportingText === "string" ? cleanText(draft.supportingText) : null,
