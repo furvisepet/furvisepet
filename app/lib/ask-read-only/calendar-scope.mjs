@@ -26,6 +26,14 @@ export function explicitCalendarScopes(question){
   found.push({from:match[1]+"-01-01",to:match[1]+"-12-31",precision:"year"});
  return [...new Map(found.map(scope=>[scope.from+"/"+scope.to,scope])).values()];
 }
+/** A requested date axis is explicit only when the owner names one axis. */
+export function explicitRequestedTimeBasis(question){
+ const text=String(question);
+ if(/\bevent\b/i.test(text)&&/\b(?:save|saved|record|recorded)\b/i.test(text)&&/\bdates?\b/i.test(text))return null;
+ const event=/\bevent dates?\b/i.test(text);
+ const recorded=/\b(?:save|saved|record|recorded) dates?\b/i.test(text);
+ return event===recorded?null:event?"event":"recorded";
+}
 export function recoverBoundedCalendarRead(first,context,pets){
  if(!["event","recorded"].includes(first.historyIntent?.timeBasis)||first.calls.length>2)return null;
  const scopes=explicitCalendarScopes(context.question);if(scopes.length<1||scopes.length>2)return null;

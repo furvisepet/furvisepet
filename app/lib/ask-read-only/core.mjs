@@ -2,7 +2,7 @@ import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
-import { explicitCalendarScopes, recoverBoundedCalendarRead } from "./calendar-scope.mjs";
+import { explicitCalendarScopes, explicitRequestedTimeBasis, recoverBoundedCalendarRead } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
@@ -303,6 +303,13 @@ export async function runReadOnlyAsk(input,deps) {
    missing:t.missing.filter(k=>!["pet","year","date_meaning","which_record"].includes(k))}:t);
  }
  if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
+ const explicitBasis=explicitRequestedTimeBasis(context.question);
+ if(explicitBasis&&first.historyIntent&&taskPlan?.some(t=>t.needsHistory&&t.kind==="saved_content")){
+  taskPlan=taskPlan.map(t=>t.needsHistory?{...t,missing:t.missing.filter(k=>k!=="date_meaning")}:t);
+  first={...first,historyIntent:{...first.historyIntent,timeBasis:explicitBasis},taskPlan};
+  context.taskPlan=taskPlan;
+  deps.onAnswerBoundary?.({outcome:"explicit_date_axis_reconciled",timeBasis:explicitBasis});
+ }
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
  const recovered=recoverBoundedCalendarRead(first,context,pets);
  if(recovered){first=recovered.first;assessment=first.safety;deps.onAnswerBoundary?.({outcome:"calendar_scope_recovered",...recovered.diagnostic});}
