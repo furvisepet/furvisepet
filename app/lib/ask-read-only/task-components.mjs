@@ -1,4 +1,4 @@
-import { containsUnverifiedStateClaim } from "../application-actions/state-claims.ts";
+import { containsUnverifiedStateClaim,enforceVerifiedStateClaims } from "../application-actions/state-claims.ts";
 /** Requested work is independent of prose mode. References remain hints until
  * owner-bound rehydration; fact excerpts gain authority only by exact matching. */
 const object=properties=>({type:"object",additionalProperties:false,properties,required:Object.keys(properties)});
@@ -198,7 +198,8 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
  // One or two saved-history tasks can quote one complete short original per
  // fully inspected bounded window when generated prose omitted an answer.
  if(!policy?.active&&tasks.length>=1&&tasks.length<=2&&tasks.every(t=>t.kind==="saved_content"
-   &&t.needsHistory&&t.pets?.length===1&&t.pets[0]===tasks[0].pets?.[0]&&!t.missing.length)
+   &&t.needsHistory&&t.pets?.length===1&&t.pets[0]===tasks[0].pets?.[0]
+   &&(t.missing.length===0||requestedScopes.length>=1&&t.missing.every(k=>k==="which_record")))
    &&(tasks.length===1||tasks.every(t=>t.sources.length))){
    const windows=coverage.filter(r=>r.scope?.kind==="history"&&r.scope?.pet
      &&(r.scope.from&&r.scope.to||r.scope.recordedFrom&&r.scope.recordedTo));
@@ -212,8 +213,10 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
        &&!r.unmet?.length&&!r.hasMore&&!r.hasPrevious&&!r.truncated)
      &&rows.every(row=>row&&row.body.trim().length<=280&&completeSentence(row.body,row.body.trim()));
    const failed=/I can read saved information, but|I can help with that|Which pet|couldn.t verify|could not reliably complete/i.test(answer.answer)
-     ||containsUnverifiedStateClaim(answer.answer)||answer.replyType!=="answer"||tasks.some(t=>t.status!=="complete")
-     ||new Set(tasks.flatMap(t=>t.sources)).size<windows.length;
+     ||containsUnverifiedStateClaim(answer.answer)||enforceVerifiedStateClaims(answer.answer,false)!==answer.answer
+     ||answer.replyType!=="answer"||tasks.some(t=>t.status!=="complete")
+     ||new Set(tasks.flatMap(t=>t.sources)).size<windows.length
+     ||tasks.some(t=>t.includeSourceDates)&&rows.some(row=>row&&!answer.answer.includes(row.eventAt.slice(0,10)));
    if(clean&&failed){
      const facts=rows.map(row=>row.petName+" - event "+row.eventAt.slice(0,10)+": “"+row.body.trim()+"”");
      const verifiedSourceText="Here’s what I found in the saved notes:\n"+facts.join("\n");

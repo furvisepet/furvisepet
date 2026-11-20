@@ -305,7 +305,7 @@ export async function runReadOnlyAsk(input,deps) {
  if(taskPlan){first.taskPlan=taskPlan;first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  const explicitBasis=explicitRequestedTimeBasis(context.question);
  if(explicitBasis&&taskPlan?.some(t=>t.needsHistory&&t.kind==="saved_content")){
-  taskPlan=taskPlan.map(t=>t.needsHistory?{...t,missing:t.missing.filter(k=>k!=="date_meaning")}:t);
+  taskPlan=taskPlan.map(t=>t.needsHistory?{...t,includeSourceDates:true,missing:t.missing.filter(k=>k!=="date_meaning")}:t);
   first={...first,historyIntent:{...(first.historyIntent??{}),requested:true,timeBasis:explicitBasis},taskPlan};
   context.taskPlan=taskPlan;
   deps.onAnswerBoundary?.({outcome:"explicit_date_axis_reconciled",timeBasis:explicitBasis});

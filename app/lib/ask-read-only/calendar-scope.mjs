@@ -30,7 +30,8 @@ export function explicitCalendarScopes(question){
 export function explicitRequestedTimeBasis(question){
  const text=String(question);
  if(/\bevent\b/i.test(text)&&/\b(?:save|saved|record|recorded)\b/i.test(text)&&/\bdates?\b/i.test(text))return null;
- const event=/\bevent dates?\b/i.test(text);
+ const event=/\bevent(?:[-\s]+(?:dates?|days?|history))?\b/i.test(text)
+  &&(/\bevent[-\s]+(?:dates?|days?|history)\b/i.test(text)||/\b(?:what|which|on what) day\b|\bwhen\b/i.test(text));
  const recorded=/\b(?:save|saved|record|recorded) dates?\b/i.test(text);
  return event===recorded?null:event?"event":"recorded";
 }
@@ -42,13 +43,15 @@ export function recoverBoundedCalendarRead(first,context,pets){
  if(named.length!==1)return null;
  const safe=first.safety?.careContext==="none"&&first.safety.medicationIntent==="none"
   &&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length||first.safety.eventAssessments?.length)
-  &&first.safety.missingContext.every(k=>["pet","date","year","which_record"].includes(k));
+  &&first.safety.missingContext.every(k=>["pet","date","year","date_meaning","which_record"].includes(k));
  const tasks=first.taskPlan?.filter(t=>t.needsHistory);
  const taskBound=!!tasks?.length&&tasks.every(t=>t.kind==="saved_content"&&t.reference===null
   &&(t.pets.length===0&&t.missing.includes("pet")||t.pets.length===1&&t.pets[0]===named[0].handle)
-  &&t.missing.every(k=>["pet","which_record","year"].includes(k)))
+  &&t.missing.every(k=>["pet","which_record","year","date_meaning"].includes(k)))
   &&safe&&first.calls.length<=2&&first.calls.every(call=>["search_saved_records","read_pet_profile"].includes(call.name)
    &&(()=>{try{return JSON.parse(call.arguments).pet===named[0].handle;}catch{return false;}})());
+ if((first.safety.missingContext.includes("date_meaning")||tasks?.some(t=>t.missing.includes("date_meaning")))
+  &&explicitRequestedTimeBasis(context.question)!==first.historyIntent.timeBasis)return null;
  const legacy=first.calls.length<=1&&scopes.length===1&&first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"
   &&first.safety.missingContext.length>0&&first.safety.missingContext.every(k=>["pet","date"].includes(k))
   &&(first.historyIntent.pet===null||first.historyIntent.pet===named[0].handle);
@@ -63,7 +66,7 @@ export function recoverBoundedCalendarRead(first,context,pets){
   recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,orderBy:basis,query:null,offset:0,order
  })}));
  const taskPlan=taskBound?first.taskPlan.map(t=>t.needsHistory?{...t,pets:[named[0].handle],recordMode:scopes.length===2?"collection":t.recordMode,
-  missing:t.missing.filter(k=>k!=="pet"&&k!=="year"&&(scopes.length!==2||k!=="which_record"))}:t):first.taskPlan;
+  missing:t.missing.filter(k=>k!=="pet"&&k!=="year"&&k!=="date_meaning"&&(scopes.length!==2||k!=="which_record"))}:t):first.taskPlan;
  return {first:{...first,text:"",taskPlan,historyIntent:{...first.historyIntent,requested:true,pet:named[0].handle},
   safety:{...first.safety,referent:"clear",missingContext:[]},calls},
   diagnostic:{precision:scopes.map(s=>s.precision).join(","),scopeCount:scopes.length,timeBasis:basis,reason:"explicit_owned_pet_calendar_scope"}};
