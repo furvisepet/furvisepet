@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {explicitCalendarScopes,explicitRequestedTimeBasis,recoverBoundedCalendarRead,clarifyUnboundHistoryPronoun,namedPetsForHistory} from "../app/lib/ask-read-only/calendar-scope.mjs";
-import {reconcileNamedProfileRead} from "../app/lib/ask-read-only/core.mjs";
+import {explicitCalendarScopes,explicitRequestedTimeBasis,recoverBoundedCalendarRead,recoverExplicitHistoryComparison,clarifyUnboundHistoryPronoun,namedPetsForHistory} from "../app/lib/ask-read-only/calendar-scope.mjs";
+import {reconcileNamedProfileRead,runReadOnlyAsk} from "../app/lib/ask-read-only/core.mjs";
 import {renderTaskCompletion} from "../app/lib/ask-read-only/task-components.mjs";
 
 const pets=[{handle:"p1",name:"QA Juniper 20Y"},{handle:"p2",name:"QA Willow 20Y"}];
@@ -406,4 +406,48 @@ test("verified profile fields reconcile a false partial completion without hidin
  assert.match(missing.answer,/couldn't complete/);
  const noFood=renderTaskCompletion(answer,[task],[{...source,body:JSON.stringify({age_value:10,age_unit:"years",current_food:null})}],null,[],[],"What does Echo's profile list for her diet and age?");
  assert.equal(noFood.taskCompletion[0].status,"partial");
+});
+
+test("plain two-year history comparison reconciles a misplanned task and reads both owned windows",async()=>{
+ const ownerId="owner-synthetic",pet={id:"pet-marigold",ownerId,name:"QA Marigold 20Y",species:"cat"};
+ const notes=[
+  {kind:"history",id:"food-note",ownerId,petId:pet.id,body:"Marigold switched to salmon food.",eventAt:"2011-05-14T12:00:00Z",recordedAt:"2026-11-19T12:00:00Z"},
+  {kind:"history",id:"travel-note",ownerId,petId:pet.id,body:"Marigold stayed at the lake house.",eventAt:"2021-07-18T12:00:00Z",recordedAt:"2026-11-19T12:00:00Z"}
+ ];
+ const q="In Marigold's history, how do the 2011 food entry and the 2021 travel entry differ?";
+ const initialSafety={medicationIntent:"none",referent:"essential_unknown",missingContext:["date"],careContext:"none",eventAssessments:[]};
+ const priorPlan={id:"t1",kind:"saved_content",needsHistory:true,needsOwnerFacts:false,includeSourceDates:false,
+  recordMode:"single",workflow:"none",pets:["p1"],reference:null,missing:["year","which_record"]};
+ const selection={calls:[{id:"one-sided",name:"search_saved_records",arguments:JSON.stringify({pet:"p1",from:"2021-01-01",to:"2021-12-31",query:"travel",offset:0})}],
+  text:"I can read saved information, but I can't make changes through Ask.",safety:initialSafety,
+  historyIntent:{requested:true,timeBasis:"event",pet:"p1"},workflowIntent:"none",
+  taskPlan:[priorPlan,{...priorPlan,id:"t2",kind:"general_guidance",needsHistory:false,recordMode:"none",pets:[],missing:[]}]};
+ const recovered=recoverExplicitHistoryComparison(selection,{question:q},[{handle:"p1",name:pet.name}]);
+ assert.ok(recovered);
+ assert.equal(recovered.first.taskPlan.length,1);
+ assert.deepEqual(recovered.first.calls.map(c=>JSON.parse(c.arguments).from),["2011-01-01","2021-01-01"]);
+ assert.equal(recoverExplicitHistoryComparison(selection,{question:"Compare Marigold and Willow's entries from 2011 and 2021"},[{handle:"p1",name:pet.name},{handle:"p2",name:"QA Willow 20Y"}]),null);
+ assert.equal(recoverExplicitHistoryComparison(selection,{question:"Compare Marigold's entries from 2011 and 2021, then delete one"},[{handle:"p1",name:pet.name}]),null);
+ const reads=[];
+ const result=await runReadOnlyAsk({ownerId,selectedPetId:pet.id,pets:[pet],question:q,
+  dialogue:[],now:"2026-11-20T12:00:00Z",timeZone:"America/Vancouver"},{
+  provider:async(request,phase)=>{
+   if(phase==="read_selection")return selection;
+   assert.deepEqual(request.context.taskPlan.map(t=>[t.kind,t.recordMode,t.missing]),[["saved_content","collection",[]]]);
+   assert.equal(request.SOURCE_CATALOG.length,2);
+   return {presentation:{sourceDates:[],contextRequired:false},
+    components:[{kind:"saved",text:"The earlier entry is about food, while the later one is about a stay away from home.",sources:["s1","s2"]}],
+    quotes:[],sources:["s1","s2"],calculations:[],replyType:"answer",
+    completion:[{task:"t1",status:"complete",reason:"none",componentIndexes:[0],sources:["s1","s2"],ownerFacts:[],
+     historyFacts:[{source:"s1",excerpt:notes[0].body},{source:"s2",excerpt:notes[1].body}]}],
+    clinicalReview:{assessment:initialSafety,ownerStatementRefs:[],observationFields:[]},
+    appHelp:{intent:"none",pet:null}};
+  },
+  read:async request=>{reads.push(request);const row=notes.find(n=>n.eventAt.startsWith(request.from.slice(0,4)));return {sources:row?[row]:[],total:row?1:0,hasMore:false,scopeExhausted:true,inspected:row?1:0};}
+ });
+ assert.deepEqual(reads.map(r=>[r.pet.id,r.from,r.terms]),[[pet.id,"2011-01-01",[]],[pet.id,"2021-01-01",[]]]);
+ assert.match(result.answer.answer,/earlier entry is about food/);
+ assert.match(result.answer.answer,/event 2011-05-14/);
+ assert.match(result.answer.answer,/event 2021-07-18/);
+ assert.equal(result.answer.replyType,"answer");
 });
