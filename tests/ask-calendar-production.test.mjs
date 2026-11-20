@@ -389,6 +389,16 @@ test("an incidental non-history task cannot hide a complete two-period compariso
  assert.match(result.answer,/rabbit food/);assert.match(result.answer,/orchard cottage/);
  assert.doesNotMatch(result.answer,/I can read saved information/);
  assert.equal(result.taskCompletion[0].status,"complete");
+ const spuriousConcern=renderTaskCompletion(answer,[saved,extra],sources,
+  {active:true,decision:false,current:[],conditional:[],currentConcern:true,summaryContext:false},
+  coverage,scopes,"How do Saffron's 2011 and 2021 saved entries differ?");
+ assert.match(spuriousConcern.answer,/rabbit food/);
+ assert.match(spuriousConcern.answer,/orchard cottage/);
+ assert.doesNotMatch(spuriousConcern.answer,/I can read saved information/);
+ const realClinical=renderTaskCompletion(answer,[saved,extra],sources,
+  {active:true,decision:false,current:["current_symptom"],conditional:[],currentConcern:true,summaryContext:false},
+  coverage,scopes,"How do Saffron's 2011 and 2021 saved entries differ?");
+ assert.equal(realClinical.verifiedSourceText,undefined);
  const incomplete=renderTaskCompletion(answer,[saved,extra],sources,null,[coverage[0],{...coverage[1],hasMore:true}],scopes,
   "How do Saffron's 2011 and 2021 saved entries differ?");
  assert.equal(incomplete.verifiedSourceText,undefined);
