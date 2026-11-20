@@ -160,23 +160,10 @@ function undatedCollectionSynthesis(text){
  // Keep generated synthesis, and let exact source facts carry calendar labels.
  const quantities="(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty)";
  const countClaim=new RegExp("\\b"+quantities+"\\s+(?:(?:saved|owned|distinct|monthly|care|historical)\\s+)*(?:notes|records|entries)\\b","i");
- const prose=text.split(/(?<=[.!?])\s+/).filter(sentence=>!countClaim.test(sentence)).join(" ");
- const month="(?:[Jj]an(?:uary)?|[Ff]eb(?:ruary)?|[Mm]ar(?:ch)?|[Aa]pr(?:il)?|May|[Jj]un(?:e)?|[Jj]ul(?:y)?|[Aa]ug(?:ust)?|[Ss]ep(?:tember)?|[Oo]ct(?:ober)?|[Nn]ov(?:ember)?|[Dd]ec(?:ember)?)";
- const year="(?:19|20|21)\\d{2}(?:-\\d{2}-\\d{2})?";
- const calendar="(?:"+month+"(?:\\s+\\d{1,2}(?:st|nd|rd|th)?\\b,?)?(?:\\s+"+year+")?|"+year+")";
- const range=calendar+"(?:\\s*(?:,|[-–]|through|to|and)\\s*(?:and\\s+)?"+calendar+")*";
- return prose.replace(new RegExp("\\b(?:(?:[Aa]cross|[Ff]rom|[Ii]n|[Dd]uring|[Tt]hrough|[Tt]o|[Bb]y|[Aa]round|[Ss]ince|[Bb]etween)\\s+)?(?:(?:early|mid|late)(?:-to-(?:early|mid|late))?[- ])?"+range+"\\b(?:\\s*,)?","g"),"")
-  .replace(/(^|\n)\s*:\s*/g,"$1")
-  .replace(/[ \t]{2,}/g," ")
-  .replace(/(?:,\s*){2,}/g,", ")
-  .replace(/,\s*(?:and\s*,\s*)+(?:and\s+)?/gi,", and ")
-  .replace(/([.!?])\s*[,;:]\s*/g,"$1 ")
-  .replace(/\b(?:and|or)\s+(?=[,.;!?])/g,"")
-  .replace(/,\s*([.!?])/g,"$1")
-  .replace(/ +([,.!?;:])/g,"$1")
-  .replace(/(^|[.!?]\s+)(\p{Ll})/gu,(_match,separator,letter)=>separator+letter.toUpperCase())
-  .replace(/\bA entry\b/g,"An entry").replace(/\ba entry\b/g,"an entry")
-  .trim();
+ const calendar=/\b(?:(?:19|20|21)\d{2}|2200)(?:-\d{2}(?:-\d{2})?)?\b|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?\b/i;
+ // Drop the whole generated sentence when it asserts a calendar date. Removing
+ // only a date substring can leave a misleading or malformed fragment.
+ return text.split(/(?<=[.!?])\s+/).filter(sentence=>!countClaim.test(sentence)&&!calendar.test(sentence)).join(" ").trim();
 }
 const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
 export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[]){
