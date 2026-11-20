@@ -167,9 +167,9 @@ function undatedCollectionSynthesis(text){
  return text.split(/(?<=[.!?])\s+/).filter(sentence=>!countClaim.test(sentence)&&!calendar.test(sentence)).join(" ").trim();
 }
 // A fully inspected single-note window can supply its original sentence when
-// the model omitted historyFacts. Never paraphrase an unverified candidate.
+// the model omitted one or more historyFacts. Never paraphrase an unverified candidate.
 function uniqueWindowFacts(task,sources,coverage){
- if(!task.sources.length||task.historyFacts.length)return [];
+ if(!task.sources.length)return [];
  const rows=task.sources.map(handle=>sources.find(s=>s.handle===handle&&s.kind==="history"));
  if(rows.some(row=>!row)||new Set(rows.map(row=>row.petName)).size!==1)return [];
  const windows=coverage.filter(r=>r.scope?.pet===rows[0].petName&&r.scope?.kind==="history"
@@ -180,7 +180,7 @@ function uniqueWindowFacts(task,sources,coverage){
   ||windows.some(r=>!task.sources.includes(r.sources[0].source)))return [];
  const excerpts=rows.map(row=>row.body.trim());
  if(excerpts.some((excerpt,index)=>excerpt.length>280||!completeSentence(rows[index].body,excerpt)))return [];
- return rows.map((row,index)=>({source:row.handle,excerpt:excerpts[index]}));
+ return rows.filter(row=>!task.historyFacts.some(f=>f.source===row.handle)).map(row=>({source:row.handle,excerpt:row.body.trim()}));
 }
 const missingLabels={pet:"pet",year:"year",date_meaning:"whether you mean the event date or save date",which_record:"saved result",owner_observation:"observations you want included",medicine:"medicine name and strength",prescription:"exact prescription",vet_plan:"prescriber's instructions"};
 // A sole current-profile task can be complete when every explicit profile field
@@ -297,10 +297,12 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
   const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
  }).filter(Boolean).join("\n\n"):answer.answer,verifiedBriefText=null;
  if(!policy?.active&&!brief&&selectedDatedFacts.length){
-  text+="\n\nHere’s what I found in the saved notes:\n"+[...new Set(selectedDatedFacts.map(f=>{
+  const verifiedHistoryText="Here’s what I found in the saved notes:\n"+[...new Set(selectedDatedFacts.map(f=>{
    const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
    return "• "+s.petName+"  -  event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+": “"+f.excerpt+"”";
   }))].join("\n");
+  text+="\n\n"+verifiedHistoryText;
+  answer={...answer,verifiedSourceText:verifiedHistoryText};
  }
  if(removedCalendar&&!selectedDatedFacts.length){
   text+="\n\nI couldn't verify the generated date-specific wording. The source cards retain the original dated records.";
