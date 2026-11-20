@@ -21,7 +21,7 @@ export const COMPONENT_INSTRUCTIONS=[
  "For a profile-only question, plan one profile-backed task and no extra saved-history task. For any requested saved/profile content or calculation set needsHistory=true and bind pets to all explicitly named or unambiguously established authorized subjects. A comparison/calculation may have multiple pets; keep each tool read pet/time scoped. An empty pets list is not permission to guess from the selected UI pet. A selected reference carries its own authorized pet. General guidance alone does not require saved reads. needsOwnerFacts is only for an owner_observations task or a vet_brief that must reproduce actual observations. Preferences, time constraints and plan revisions are ordinary dialogue context, not factual excerpts required before general guidance can be answered.",
  "missing identifies what is genuinely unresolved. A vague month with no established pet/year requires one pointed pet/year question; a fresh dated saved-note question may use the selected pet when no other subject is named. An explicit pet plus month/year is sufficient; do not demand a day. Clinical missing authority must not prevent an independently scoped saved-data task.",
  "In the final completion array account for EACH task ID once. Select componentIndexes for independently answerable ordinary prose, sources for current admitted evidence, and exact factual excerpts for a vet brief. ownerFacts excerpts must be short COMPLETE verbatim sentences preserving negation, attribution and caveats; declarative observations from the selected USER statement, not their request, an assistant assertion, speculation, or a question. historyFacts excerpts must be one or more CONTIGUOUS COMPLETE sentences occurring byte-for-byte in an admitted note, preserving negation and attribution. Never generate a diagnosis or regimen directive in these excerpts; historical plans remain historical quotations. Questions for the vet come from the bounded clinical review fields. Do not put extra clinical recommendations into a summary component.",
- "Use complete only when this requested task is actually delivered. Unresolved/partial requires a specific reason. Preserve the other completed tasks. Do not add a generic partial/context notice when all requested components are delivered. Do not repeat server dates or arithmetic in model prose; the server publishes them once. Source omissions limit only the affected task; never claim a complete collection when bodies are omitted."
+ "Use complete only when this requested task is actually delivered. Unresolved/partial requires a specific reason. Preserve the other completed tasks. When a question asks what an old note says AND whether it establishes a current fact, answer both parts; distinguish the historical report from current evidence, and plan a current profile read if it can answer that part. Do not add a generic partial/context notice when all requested components are delivered. Do not repeat server dates or arithmetic in model prose; the server publishes them once. Source omissions limit only the affected task; never claim a complete collection when bodies are omitted."
 ].join("\n");
 export function componentSelectionSchema(base,context){
  const out=structuredClone(base);
@@ -215,6 +215,11 @@ function completeProfileFields(question,answer,task,sources,coverage){
   return !!unitValue&&normalized.includes(unitValue);
  });
 }
+// Exact past-source fallback must also answer an explicit present-state inference.
+function distinguishHistoricalPresent(answer,question){
+ if(!/\b(?:now|today|still|currently|current|at present|these days)\b/i.test(question))return answer;
+ return {...answer,answer:answer.answer+"\n\nThat saved note records a past report; by itself, it cannot confirm what is true now."};
+}
 export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],requestedScopes=[],question=""){
  if(!tasks)return answer;
  if(!policy?.active&&tasks.length===1&&completeProfileFields(question,answer,tasks[0],sources,coverage))
@@ -270,13 +275,13 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
        :rows.map(row=>"The saved note for "+row.petName+" about "+row.eventAt.slice(0,10)+" says: "+quoted(row));
      const verifiedSourceText=facts.join("\n");
      const otherTasks=tasks.filter(t=>!savedTasks.includes(t));
-     return {...answer,answer:verifiedSourceText,verifiedSourceText,
+     return distinguishHistoricalPresent({...answer,answer:verifiedSourceText,verifiedSourceText,
        sources:[...new Set([...answer.sources,...rows.map(row=>row.handle)])],
        quotes:[...new Map([...answer.quotes,...rows.map(row=>({source:row.handle,quote:row.body}))].map(q=>[q.source,q])).values()],
        presentation:{...answer.presentation,sourceDates:[],contextRequired:false},
        taskCompletion:tasks.map(t=>({id:t.id,kind:t.kind,status:savedTasks.includes(t)?"complete":t.status,
          reason:savedTasks.includes(t)?"none":t.reason,sourceCount:t.sources.length||rows.length})),
-       limited:otherTasks.some(t=>t.status!=="complete"),replyType:otherTasks.some(t=>t.status!=="complete")?"partial":"answer"};
+       limited:otherTasks.some(t=>t.status!=="complete"),replyType:otherTasks.some(t=>t.status!=="complete")?"partial":"answer"},question);
    }
  }
  const blocked=new Set(tasks.filter(t=>t.status==="unresolved"||t.needsHistory&&!t.sources.length||t.needsOwnerFacts&&!t.ownerFacts.length).flatMap(t=>t.componentIndexes));
