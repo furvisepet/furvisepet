@@ -388,3 +388,22 @@ test("a plain named profile lookup needs one owned profile read and one task",()
  assert.equal(reconcileNamedProfileRead(selection,{question:"What does Dune's profile say about food history?"},[pet]),null);
  assert.equal(reconcileNamedProfileRead(selection,{question:"Is Dune's food safe based on the profile?"},[pet]),null);
 });
+
+test("verified profile fields reconcile a false partial completion without hiding a missing field",()=>{
+ const source={handle:"s1",kind:"profile",petName:"Echo",body:JSON.stringify({age_value:10,age_unit:"years",current_food:"sensitive stomach turkey kibble"})};
+ const task={id:"t1",kind:"saved_content",recordMode:"single",status:"partial",reason:"not_answered",missing:[],sources:["s1"],componentIndexes:[0],historyFacts:[],ownerFacts:[],needsHistory:true,pets:["echo"]};
+ const answer={answer:"Echo eats sensitive stomach turkey kibble and is 10 years old.",replyType:"answer",sources:["s1"],quotes:[],presentation:{sourceDates:[]},validatedParts:[{index:0,text:"Echo eats sensitive stomach turkey kibble and is 10 years old."}]};
+ const complete=renderTaskCompletion(answer,[task],[source],null,[],[],"What does Echo's profile list for her diet and age?");
+ assert.equal(complete.replyType,"answer");
+ assert.equal(complete.taskCompletion[0].status,"complete");
+ assert.doesNotMatch(complete.answer,/couldn't complete/);
+ const mislabeled=renderTaskCompletion({...answer,replyType:"partial"},[task],[source],null,[],[],"What does Echo's profile list for her diet and age?");
+ assert.equal(mislabeled.replyType,"answer");
+ const limited=renderTaskCompletion({...answer,validatedParts:[{index:0,kind:"saved",text:answer.answer},{index:1,kind:"limitation",text:"I cannot verify more."}]},[task],[source],null,[],[],"What does Echo's profile list for her diet and age?");
+ assert.equal(limited.taskCompletion[0].status,"partial");
+ const missing=renderTaskCompletion({...answer,answer:"Echo is 10 years old.",validatedParts:[{index:0,text:"Echo is 10 years old."}]},[task],[source],null,[],[],"What does Echo's profile list for her diet and age?");
+ assert.equal(missing.taskCompletion[0].status,"partial");
+ assert.match(missing.answer,/couldn't complete/);
+ const noFood=renderTaskCompletion(answer,[task],[{...source,body:JSON.stringify({age_value:10,age_unit:"years",current_food:null})}],null,[],[],"What does Echo's profile list for her diet and age?");
+ assert.equal(noFood.taskCompletion[0].status,"partial");
+});
