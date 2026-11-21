@@ -2,8 +2,8 @@ import "server-only";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 const EXPORT_ROW_LIMIT = 5_000;
-// Kept below the canonical idempotency response ceiling; larger accounts use the support-assisted workflow.
-export const MAX_EXPORT_BYTES = 96 * 1024;
+// Leave headroom below the deployment's 4.5 MB response limit.
+export const MAX_EXPORT_BYTES = 4 * 1024 * 1024;
 
 const USER_TABLES = [
   ["user_profiles", "accountPreferences"], ["dog_profiles", "pets"], ["pet_care_entries", "careHistory"],
@@ -19,22 +19,27 @@ const OMITTED_FIELDS = new Set(["context_used", "dedupe_key", "idempotency_key",
 
 export async function buildUserDataExport(admin: SupabaseClient, user: User, ownerClient: SupabaseClient) {
   const sections: Record<string, unknown[]> = {};
+  let rowBytes = 0;
+  const accountForRow = (row: Record<string, unknown>) => {
+    rowBytes += Buffer.byteLength(JSON.stringify(row), "utf8") + 1;
+    if (rowBytes > MAX_EXPORT_BYTES) throw new Error("EXPORT_TOO_LARGE");
+  };
   for (const [table, section] of USER_TABLES) {
-    sections[section] = await readExportSection(admin, user, table, "*");
+    sections[section] = await readExportSection(admin, user, table, "*", accountForRow);
   }
   // Usage history is intentionally readable through the authenticated owner,
   // not the operations service role. Keep its existing RLS boundary intact.
-  const usage = await readExportSection(ownerClient, user, "ai_usage_events", "feature,status,credits_used,period_start,created_at,completed_at");
+  const usage = await readExportSection(ownerClient, user, "ai_usage_events", "feature,status,credits_used,period_start,created_at,completed_at", accountForRow);
   const document = {
     account: { confirmedAt: user.email_confirmed_at || null, createdAt: user.created_at, email: user.email || null, id: user.id },
     aiUsage: usage || [], exportedAt: new Date().toISOString(), formatVersion: 1, ...sections,
   };
-  const body = JSON.stringify(document, null, 2);
+  const body = JSON.stringify(document);
   if (Buffer.byteLength(body, "utf8") > MAX_EXPORT_BYTES) throw new Error("EXPORT_TOO_LARGE");
   return body;
 }
 
-async function readExportSection(admin: SupabaseClient, user: User, table: string, columns: string) {
+async function readExportSection(admin: SupabaseClient, user: User, table: string, columns: string, accountForRow: (row: Record<string, unknown>) => void) {
   const rows: Record<string, unknown>[] = [];
   const key = table === "user_profiles" ? "user_id" : table === "pet_current_state" ? "pet_profile_id" : "id";
   let expectedTotal: number | null = null;
@@ -49,9 +54,12 @@ async function readExportSection(admin: SupabaseClient, user: User, table: strin
     expectedTotal = count;
     // A short page may be the API's configured cap, not the end of the table.
     if (!data?.length && rows.length < count) throw new Error("EXPORT_INCOMPLETE");
-    rows.push(...((data || []) as unknown as Record<string, unknown>[]).map(sanitizeRecord));
+    for (const record of (data || []) as unknown as Record<string, unknown>[]) {
+      const row = sanitizeRecord(record);
+      accountForRow(row);
+      rows.push(row);
+    }
     if (rows.length > count) throw new Error("EXPORT_CHANGED_DURING_READ");
-    if (Buffer.byteLength(JSON.stringify(rows), "utf8") > MAX_EXPORT_BYTES) throw new Error("EXPORT_TOO_LARGE");
   } while (rows.length < expectedTotal);
   return rows;
 }

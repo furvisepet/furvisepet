@@ -1,0 +1,43 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { buildUserDataExport } from "../app/lib/operations/user-data-export.ts";
+
+const user = { id: "qa-owner" };
+
+function fakeClient(tableRows) {
+  return {
+    from(table) {
+      const rows = tableRows[table] ?? [];
+      return {
+        select() { return this; },
+        eq(column, value) {
+          assert.equal(column, "user_id");
+          assert.equal(value, user.id);
+          return this;
+        },
+        order() { return this; },
+        range(start, end) {
+          return { data: rows.slice(start, end + 1), error: null, count: rows.length };
+        },
+      };
+    },
+  };
+}
+
+test("a long account exports every paged conversation message beyond the old receipt limit", async () => {
+  const messages = Array.from({ length: 613 }, (_, index) => ({
+    id: index, content: "A saved reply about the pet. ".repeat(12), provider_response: "private",
+  }));
+  const body = await buildUserDataExport(fakeClient({ ask_conversation_messages: messages }), user, fakeClient({}));
+  assert.ok(Buffer.byteLength(body) > 96 * 1024);
+  const exported = JSON.parse(body).conversationMessages;
+  assert.deepEqual(exported, messages.map(({ id, content }) => ({ id, content })));
+});
+
+test("the byte bound applies across sections before an oversized download is returned", async () => {
+  const large = [{ text: "é".repeat(1_100_000) }];
+  await assert.rejects(
+    buildUserDataExport(fakeClient({ pet_care_entries: large, ask_conversation_messages: large }), user, fakeClient({})),
+    { message: "EXPORT_TOO_LARGE" },
+  );
+});

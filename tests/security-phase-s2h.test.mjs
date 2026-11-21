@@ -85,7 +85,7 @@ test("export authenticates, requires current-session recent auth, origin protect
 
 test("export is owner-filtered, bounded, private, attached, and strips internal fields", () => {
   const exporter = source("app/lib/operations/user-data-export.ts"); assert.match(exporter, /\.eq\("user_id", user\.id\)/); assert.match(exporter, /EXPORT_ROW_LIMIT = 5_000/);
-  assert.match(exporter, /MAX_EXPORT_BYTES = 96 \* 1024/); assert.match(exportRoute, /Content-Disposition/); assert.match(exportRoute, /private, no-store/);
+  assert.match(exporter, /MAX_EXPORT_BYTES = 4 \* 1024 \* 1024/); assert.match(exportRoute, /Content-Disposition/); assert.match(exportRoute, /private, no-store/);
   for (const value of ["context_used", "idempotency_key", "payload_hash", "provider_response", "source_excerpt"]) assert.match(exporter, new RegExp(`"${value}"`));
 });
 
