@@ -358,7 +358,7 @@ export async function runReadOnlyAsk(input,deps) {
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
  const weightPeriod=recoverWeightPeriodEndpoints(first,context,pets);
  const historyComparison=weightPeriod?null:recoverExplicitHistoryComparison(first,context,pets);
- const recovered=weightPeriod??historyComparison??recoverBoundedCalendarRead(first,context,pets);
+ const recovered=weightPeriod??historyComparison??recoverBoundedCalendarRead(first,context,pets,references);
  if(recovered){first=recovered.first;taskPlan=first.taskPlan;context.taskPlan=taskPlan;assessment=validateClinicalAssessment(first.safety);deps.onAnswerBoundary?.({outcome:"calendar_scope_recovered",...recovered.diagnostic});}
  // No medical lexicon in the executor: carry the structured first-pass meaning.
  // Do not let optional records delay a current emergency, or history guess an
@@ -525,8 +525,9 @@ export async function runReadOnlyAsk(input,deps) {
  const profileLookup=bound.length===1&&bound[0].request.kind==="profile"&&taskPlan?.length===1&&taskPlan[0].kind==="saved_content"
   &&!taskPlan[0].missing.length&&!taskPlan[0].reference&&oneLatestQuestion;
  const plainLatest=oneLatestQuestion&&!latestTopic&&bound.length===1&&bound[0].request.takeFirst;
+ const periodWeight=recovered?.diagnostic.reason==="prior_body_weight_new_period";
  if(!emergency&&(!assessment||assessment.careContext==="none"&&assessment.medicationIntent==="none")
-  &&results.length===1&&!results[0].unmet.length&&sources.length===1&&(plainLatest||profileLookup)){
+  &&results.length===1&&!results[0].unmet.length&&sources.length===1&&(plainLatest||profileLookup||periodWeight)){
   const source=sources[0];
   let fact,quote;
   if(plainLatest&&source.body.trim()&&source.body.length<=1500){
@@ -534,6 +535,13 @@ export async function runReadOnlyAsk(input,deps) {
    const date=new Intl.DateTimeFormat("en-US",{timeZone:input.timeZone,year:"numeric",month:"long",day:"numeric"}).format(new Date(instant));
    quote=source.body;
    fact=source.petName+"’s most recent note ("+date+") says: “"+quote+"”";
+  }else if(periodWeight){
+   const weights=source.measurements.filter(value=>value.metric==="body_weight");
+   if(weights.length===1){
+    const instant=bound[0].request.orderBy==="recorded"?source.recordedAt:source.eventAt;
+    const date=new Intl.DateTimeFormat("en-US",{timeZone:input.timeZone,year:"numeric",month:"long",day:"numeric"}).format(new Date(instant));
+    fact=source.petName+" weighed "+weights[0].value+" "+weights[0].unit+" on "+date+".";
+   }
   }else if(profileLookup){
    let profile;
    try{profile=JSON.parse(source.body);}catch{profile=null;}

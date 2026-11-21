@@ -285,3 +285,30 @@ test("explicit historical weight change uses one verified endpoint per requested
  assert.match(result.answer.answer,/5.1 kg on February 15, 2025 and 5.4 kg on January 10, 2026/);
  assert.equal(result.answer.replyType,"answer");
 });
+
+test("a new dated reading follows the last verified weight without reusing its date",async()=>{
+ const cat={...pet,name:"Piper"};
+ const september={...note,body:"Piper weighed 5.1 kg.",eventAt:"2025-09-10T12:00:00Z"};
+ const october={...note,id:"october-note",body:"Piper weighed 5.4 kg.",eventAt:"2025-10-10T12:00:00Z"};
+ const previousQuestion="How much did Piper weigh at the September 2025 checkup?";
+ const prev=await runReadOnlyAsk(input(previousQuestion,{pets:[cat]}),{
+   provider:async(_request,phase)=>phase==="read_selection"
+    ?{calls:[],text:"",taskPlan:[plan({pets:["p1"]})],safety:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]}}
+    :({...completed(true),appHelp:{intent:"none",pet:null},clinicalReview:{assessment:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]},ownerStatementRefs:[],observationFields:[]}}),
+   read:async()=>({sources:[september],total:1,hasMore:false,scopeExhausted:true})
+ });
+ const result=await runReadOnlyAsk(input("What was the October 2025 reading?",{pets:[cat],readReferences:prev.readReferences,
+   dialogue:[{role:"user",text:previousQuestion},{role:"assistant",text:prev.answer.answer}]}),{
+   provider:async(_request,phase)=>{
+    assert.equal(phase,"read_selection");
+    return {calls:[],text:"",taskPlan:[plan({kind:"clarification"})],
+     safety:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]}};
+   },
+   read:async request=>{
+    assert.equal(request.from,"2025-10-01");
+    assert.equal(request.to,"2025-10-31");
+    return {sources:[october],total:1,hasMore:false,scopeExhausted:true};
+   }
+ });
+ assert.match(result.answer.answer,/Piper weighed 5.4 kg on October 10, 2025/);
+});
