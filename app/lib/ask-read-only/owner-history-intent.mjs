@@ -73,7 +73,7 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
  // A named pet plus an explicit note topic is enough to search. The
  // request's own content words are retrieval hints, never record evidence.
  const topic=/^\s*what did (?:i|we) (?:write|note|record|say|write down) about\s+([^?.!]{1,120})\??$/i.exec(question)?.[1];
- if(topic&&!/\b(?:earlier answer|previous result|then|and what|and when)\b/i.test(question)){
+ if(topic&&!/\b(?:earlier answer|previous result|then|and (?:what|when|why|how|did|should|can)|all|every|ever|always|never|latest|first|last|only|currently|today)\b/i.test(question)){
   const tokens=topic.match(/[\p{L}]{3,}/gu)??[];
   const names=new Set(named[0].name.toLowerCase().match(/[\p{L}]{3,}/gu)??[]);
   const terms=tokens.map(word=>word.toLowerCase()).filter(word=>!names.has(word)
@@ -102,4 +102,24 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
   return recovered(named[0],calls);
  }
  return null;
+}
+
+// A positive topic lookup can be answered with one directly matching
+// sentence. This does not assert uniqueness across the journal or completeness.
+export function verifiedOwnerNoteTopic(terms,sources){
+ if(!terms||terms.length<2||terms.some(term=>term.length<4))return null;
+ const segmenter=new Intl.Segmenter("en",{granularity:"sentence"});
+ const matches=[];
+ for(const source of sources){
+  for(const {segment} of segmenter.segment(source.body)){
+   const excerpt=segment.trim();
+   if(!excerpt||excerpt.length>400)continue;
+   const words=new Set(excerpt.toLowerCase().match(/[\p{L}]+/gu)??[]);
+   if(terms.every(term=>["","s","es","ed","ing","ness"].some(suffix=>words.has(term+suffix)))){
+    matches.push({source,excerpt});
+    break;
+   }
+  }
+ }
+ return matches.length===1?matches[0]:null;
 }

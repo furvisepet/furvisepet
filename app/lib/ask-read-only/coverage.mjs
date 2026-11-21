@@ -9,6 +9,7 @@ export function readCoverageMessages(coverage=[]) {
    return [pet+": Some saved notes could not be checked right now. Please try again."];
   if(unmet.includes("no_selected_support"))
    return [pet+": I couldn't confirm this part from the saved notes I reviewed."];
+  if(row.requestedEvidenceSatisfied===true)return [];
   if(row.omitted||row.hasMore||row.hasPrevious||row.truncated||unmet.length)
    return [pet+": This answer covers only part of the matching saved history. Ask about a shorter period for a closer look."];
   if(row.searchRelaxed)

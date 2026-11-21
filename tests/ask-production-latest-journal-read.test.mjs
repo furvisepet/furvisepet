@@ -216,3 +216,29 @@ test("start and end of a single year read the first and last recorded weights",a
  assert.match(result.answer.answer,/5.1 kg on January 10, 2026 and 5.4 kg on December 14, 2026/);
  assert.equal(result.answer.replyType,"answer");
 });
+
+test("a directly verified journal topic can be answered with a partial discovery window",async()=>{
+ const cat={...pet,name:"Piper"};
+ const match={...note,body:"Piper was restless after thunderstorms. Activity later returned to usual."};
+ const unrelated={...note,id:"other-note",body:"Restless before breakfast."};
+ const result=await runReadOnlyAsk(input("What did I write about Piper getting restless after thunderstorms?",{pets:[cat]}),{
+  provider:async(_request,phase)=>{
+   assert.equal(phase,"read_selection");
+   return {calls:[],text:"Which saved result?",taskPlan:[plan({kind:"clarification"})],
+    safety:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]}};
+  },
+  read:async request=>{
+   assert.deepEqual(request.terms,["restless","thunderstorms"]);
+   return {sources:[unrelated,match],total:120,inspected:2,hasMore:true,scopeExhausted:false};
+  }
+ });
+ assert.match(result.answer.answer,/Piper was restless after thunderstorms\./);
+ assert.equal(result.answer.replyType,"answer");
+ assert.equal(result.providerCallCount,1);
+ assert.equal(result.answer.taskCompletion[0].status,"complete");
+ assert.deepEqual(result.sources.map(row=>row.id),[match.id]);
+ assert.equal(result.coverage[0].hasMore,true);
+ const {response,limited}=buildReadOnlyPublication(result,ownerId,"Piper");
+ assert.equal(limited,false);
+ assert.ok(!response.sections.some(section=>section.heading==="What I checked"));
+});

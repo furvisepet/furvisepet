@@ -5,7 +5,7 @@ import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
 import { explicitCalendarScopes, explicitRequestedTimeBasis, recoverBoundedCalendarRead,recoverExplicitHistoryComparison,recoverWeightPeriodEndpoints,clarifyUnboundHistoryPronoun,namedPetsForHistory } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
-import { recoverOwnerHistoryIntent, historyOnlyInferenceQuestion } from "./owner-history-intent.mjs";
+import { recoverOwnerHistoryIntent, historyOnlyInferenceQuestion, verifiedOwnerNoteTopic } from "./owner-history-intent.mjs";
 import { calculateReadSources, presentBodyWeightComparison, readSourceMeasurements } from "./calculations.mjs";
 /**
  * Read-only Ask capability protocol. No canonical intent planner and no mutations.
@@ -562,6 +562,21 @@ export async function runReadOnlyAsk(input,deps) {
    answer.taskCompletion=taskPlan.map(task=>({id:task.id,kind:task.kind,status:"complete",reason:"none",sourceCount:2}));
    return sealReadOnlyResult({answer,readReferences:preserveReferences(answer),sources,providerCallCount:calls,dialogueCoverage,
     coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length})),requestedPetContext:false,queryShape:"other"});
+  }
+ }
+ const topicRead=bound.length===1&&bound[0].id==="owner-note-topic"?bound[0].request:null;
+ if(topicRead&&taskPlan?.length===1&&!emergency&&!acquired[0].unavailable){
+  const match=verifiedOwnerNoteTopic(topicRead.terms,sources);
+  if(match){
+   const {source,excerpt}=match;
+   const fact="You wrote: “"+excerpt+"”";
+   const answer=validateReadOnlyAnswer({components:[{kind:"saved",text:fact,sources:[source.handle]}],sources:[source.handle],
+    quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}},[source],context.question);
+   answer.verifiedSourceText=excerpt;
+   answer.taskCompletion=[{id:taskPlan[0].id,kind:"saved_content",status:"complete",reason:"none",sourceCount:1}];
+   const {sources:visible,...coverage}=results[0];
+   return sealReadOnlyResult({answer,readReferences:preserveReferences(answer),sources:[source],providerCallCount:calls,dialogueCoverage,
+    coverage:[{...coverage,returned:visible.length,requestedEvidenceSatisfied:true}],requestedPetContext:false,queryShape:"other"});
   }
  }
  const discovery=resolveRecordDiscovery(taskPlan,bound,results);
