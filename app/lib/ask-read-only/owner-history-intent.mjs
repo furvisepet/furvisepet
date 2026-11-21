@@ -64,6 +64,29 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
      pets:[pet.handle],reference:null,missing:[]}]};
   }
  }
+ // A short follow-up about what the owner said can refer to the one
+ // journal note just used, even when the planner mistakes it for chat text.
+ const priorQuestion=context.dialogue?.at(-2);
+ const noteFollowup=/^\s*did (?:i|we) (?:say|mention|write|note|record)\b[^?!]{1,115}\??$/i.test(question)
+  &&/\b(?:it|that|this|there)\b/i.test(question)
+  &&!/\b(?:chat|conversation|earlier here|today|new note|different note|should|can i)\b/i.test(question);
+ if(noteFollowup&&priorQuestion?.role==="user"&&/^\s*what did (?:i|we) (?:write|note|record|say|write down) about\b/i.test(priorQuestion.text)
+  &&context.dialogue.at(-1)?.role==="assistant"&&tasks?.length&&safety&&["none","clinical_history"].includes(safety.careContext)
+  &&safety.medicationIntent==="none"&&!safety.currentEvents?.length&&!safety.conditionalEvents?.length
+  &&!safety.eventAssessments?.some(event=>event.occurrence!=="historical")
+  &&safety.missingContext.every(key=>resolvedScopeFields.includes(key))
+  &&tasks.every(task=>historyTaskKinds.includes(task.kind)&&task.missing.every(key=>resolvedScopeFields.includes(key)))){
+  const active=references.filter(ref=>ref.usedInPreviousAnswer);
+  if(active.length===1&&active[0].request.kind==="history"&&active[0].request.expectedSources?.length===1){
+   const {handle,request}=active[0];
+   if(named.every(pet=>pet.handle===request.pet.handle)&&context.selectedPet===request.pet.handle){
+    return {...first,text:"",calls:[{id:"owner-note-follow-up",name:"read_referenced_sources",arguments:JSON.stringify({reference:handle})}],
+     historyIntent:{requested:true,timeBasis:request.orderBy,pet:request.pet.handle},safety:{...safety,referent:"clear",missingContext:[]},
+     taskPlan:[{...tasks[0],kind:"saved_content",needsHistory:true,needsOwnerFacts:false,recordMode:"single",workflow:"none",
+      pets:[request.pet.handle],reference:handle,missing:[]}]};
+   }
+  }
+ }
  const earlyArrival=firstVisit.test(question)&&!explicitCalendarScopes(question).length&&!explicitRequestedTimeBasis(question)
   &&!/\b(?:and (?:how|what|when)|today|currently|now)\b/i.test(question);
  const canCollapseArrival=earlyArrival&&tasks?.length&&tasks.every(task=>historyTaskKinds.includes(task.kind)&&!task.reference&&!task.needsOwnerFacts
