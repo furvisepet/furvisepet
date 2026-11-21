@@ -99,3 +99,14 @@ test("a history-only current inference answers the limit without reading or gene
  assert.match(result.answer.answer,/can’t tell you whether it’s still happening today/);
  assert.deepEqual(result.sources,[]);
 });
+
+test("a pet name in a place does not change the subject of an occurrence",()=>{
+ const owned=[{id:"one",handle:"p1",name:"QA Luna Long History"},{id:"two",handle:"p2",name:"Maple"}];
+ const initial=first({calls:[{id:"wrong-profile",name:"read_pet_profile",arguments:'{"pet":"p2"}'}]});
+ initial.taskPlan[0].pets=["p2"];
+ const plan=recoverOwnerHistoryIntent(initial,context("When did Luna stay at the maple lodge?"),owned,[]);
+ const args=JSON.parse(plan.calls[0].arguments);
+ assert.equal(args.pet,"p1");
+ assert.equal(args.query,"maple lodge");
+ assert.deepEqual(plan.taskPlan[0].pets,["p1"]);
+});
