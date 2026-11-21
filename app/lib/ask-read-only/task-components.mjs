@@ -197,9 +197,9 @@ function completeProfileFields(question,answer,task,sources,coverage){
    &&(r.unmet?.length||r.hasMore||r.truncated||r.omitted)))return false;
  let profile;try{profile=JSON.parse(row.body);}catch{return false;}
  const requested=[
-  [/\bage\b/i,"age_value","age_unit"],
+  [/\b(?:age|how old)\b/i,"age_value","age_unit"],
   [/\b(?:food|diet|feeding)\b/i,"current_food"],
-  [/\bbreed\b/i,"breed"],
+  [/\b(?:breed|what kind of (?:dog|cat|rabbit|bird))\b/i,"breed"],
   [/\bspecies\b/i,"species"],
   [/\bsex\b/i,"sex"],
   [/\bweight\b/i,"weight_value","weight_unit"]

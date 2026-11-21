@@ -95,10 +95,14 @@ export function calculateReadSources(calculations,sources) {
    }else{result=values[1].value-values[0].value;label="Change from earlier to later";}
   }
   if(!Number.isFinite(result))return unavailable("The calculation exceeds the supported numeric range.",unit);
+  // Keep full numeric precision for result metadata. Use compact display
+  // precision for percentages without displaying a nonzero change as zero.
+  const displayResult=calculation.operation==="percent_change"&&Math.abs(result)>=0.01
+   ?String(Number(result.toFixed(2))):format(result);
   const metric=metrics[0].replaceAll("_"," ");
   const provenance=values.map(value=>new Date(value.time).toISOString()+": "+format(value.value)+" "+unit).join(" → ");
   const petLabels=[...new Set(values.map(v=>v.petName).filter(Boolean))].join(" / ");
-  return {text:(petLabels?petLabels+"  -  ":"")+metric+"  -  "+label+": "+(["difference","percent_change"].includes(calculation.operation)&&result>0?"+":"")+format(result)+(calculation.operation==="percent_change"?"%":" "+unit)+" ("+timeBasis+" dates; "+provenance+")",
+  return {text:(petLabels?petLabels+"  -  ":"")+metric+"  -  "+label+": "+(["difference","percent_change"].includes(calculation.operation)&&result>0?"+":"")+displayResult+(calculation.operation==="percent_change"?"%":" "+unit)+" ("+timeBasis+" dates; "+provenance+")",
    metric:metrics[0],timeBasis,operandCount:values.length,sourceHandles:values.map(value=>value.source),value:Number(format(result)),unit:calculation.operation==="percent_change"?"%":unit};
  });
 }

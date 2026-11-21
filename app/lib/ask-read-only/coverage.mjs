@@ -1,6 +1,6 @@
 /** Human-facing limits only. Query accounting stays in server result metadata. */
 export function readCoverageMessages(coverage=[]) {
- return coverage.flatMap(row=>{
+ return [...new Set(coverage.flatMap(row=>{
   const pet=typeof row.scope?.pet==="string"?row.scope.pet:"This pet";
   const unmet=Array.isArray(row.unmet)?row.unmet:[];
   if(unmet.includes("referenced_source_changed_or_missing"))
@@ -14,5 +14,5 @@ export function readCoverageMessages(coverage=[]) {
   if(row.searchRelaxed)
    return [pet+": I didn't find an exact match, so I included related saved notes from the same pet and period."];
   return [];
- });
+ }))];
 }

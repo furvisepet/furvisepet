@@ -155,6 +155,12 @@ export function recoverBoundedCalendarRead(first,context,pets){
  if(bothAxes&&!explicitRequestedTimeBasis(context.question))return null;
  const scopes=explicitCalendarScopes(context.question);if(scopes.length<1||scopes.length>4)return null;
  const named=namedPetsForHistory(context.question,pets);
+ const selected=pets.find(pet=>pet.handle===context.selectedPet);
+ const modelSubject=first.taskPlan?.length===1&&first.taskPlan[0].pets.length===1
+  &&first.taskPlan[0].pets[0]===selected?.handle&&first.historyIntent?.pet===selected?.handle;
+ // Unnamed questions may retain an already bound selection. Never infer an
+ // unset pet from a calendar date or override a conflicting owned name.
+ if(!named.length&&selected&&modelSubject&&!first.safety?.missingContext.includes("pet"))named.push(selected);
  if(named.length!==1)return null;
  const safe=first.safety?.careContext==="none"&&first.safety.medicationIntent==="none"
   &&!(first.safety.currentEvents?.length||first.safety.conditionalEvents?.length||first.safety.eventAssessments?.length)

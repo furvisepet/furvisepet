@@ -5,6 +5,7 @@ import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
 import { explicitCalendarScopes, explicitRequestedTimeBasis, requestedHistoryTimeBasis, recoverBoundedCalendarRead,recoverExplicitHistoryComparison,clarifyUnboundHistoryPronoun,namedPetsForHistory } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
+import { recoverOwnerHistoryIntent, historyOnlyInferenceQuestion } from "./owner-history-intent.mjs";
 import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
 /**
  * Read-only Ask capability protocol. No canonical intent planner and no mutations.
@@ -26,10 +27,18 @@ export function requiresSelectedPetContext(question,selectedPet) {
  * This does not handle historical comparisons, clinical interpretation or actions. */
 export function reconcileNamedProfileRead(first,context,pets){
  const question=String(context.question??"");
- if(!/\bprofile\b/i.test(question)||!/\b(?:age|food|diet|feeding|breed|weight|species|sex|birthday|preference|preferences)\b/i.test(question)
-  ||/\b(?:note|journal|history|record|entry|event|compare|versus|changed|before|after|past|safe|healthy|should|medicine|medication|symptom)\b/i.test(question)
+ const explicitProfile=/\bprofile\b/i.test(question);
+ const ordinaryField=/\b(?:how old|what (?:kind of (?:cat|dog|rabbit|bird|pet|animal)|breed|species|sex)|what (?:is|was)\b[^?]{0,65}\b(?:age|breed|species|sex|birthday)|what (?:food|diet)\b[^?]{0,65}\b(?:listed|set|on|eating))\b/i.test(question);
+ if(!explicitProfile&&!ordinaryField||!/\b(?:age|old|kind|food|diet|feeding|breed|weight|species|sex|birthday|preference|preferences)\b/i.test(question)
+  ||/\b(?:notes?|journal|history|records?|entries|entry|event|compare|versus|changed|before|after|past|first|last|used to|at the time|safe|healthy|should|medicine|medication|symptom)\b/i.test(question)
   ||explicitCalendarScopes(question).length)return null;
  const named=namedPetsForHistory(question,pets);if(named.length!==1||!first.taskPlan?.length)return null;
+ if(!explicitProfile&&(/\bwhen\b|\bhow old was\b/i.test(question)||first.taskPlan.length!==1||first.taskPlan[0].reference||first.taskPlan[0].needsOwnerFacts
+  ||first.taskPlan[0].pets.some(handle=>handle!==named[0].handle)
+  ||first.calls.some(call=>{
+   if(call.name!=="read_pet_profile")return true;
+   try{return JSON.parse(call.arguments)?.pet!==named[0].handle;}catch{return true;}
+  })))return null;
  const safety=first.safety;
  if(safety?.careContext!=="none"||safety.medicationIntent!=="none"
   ||safety.currentEvents?.length||safety.conditionalEvents?.length||safety.eventAssessments?.length
@@ -288,7 +297,7 @@ export function isReadOnlyResult(value) { return !!value && reviewedResults.has(
 export async function runReadOnlyAsk(input,deps) {
  const pets=input.pets.filter(p=>p.ownerId===input.ownerId).map((p,i)=>({...p,handle:"p"+(i+1)}));
  if(!pets.some(p=>p.id===input.selectedPetId))fail("ASK_READ_PET_NOT_AUTHORIZED");
-  const references=restoreReadReferences(input.readReferences,pets);
+  const references=restoreReadReferences(input.readReferences,pets,input.referencesFromPreviousAnswer!==false);
   const namedContextPet=pets.find(pet=>requiresSelectedPetContext(input.question,pet))??null;
   const selectedPetContextRequired=!!namedContextPet;
  const latestNamedNotePet=pets.find(p=>p.id===input.selectedPetId&&requiresNamedLatestSavedNote(input.question,p,pets))??null;
@@ -321,7 +330,7 @@ export async function runReadOnlyAsk(input,deps) {
   deps.onAnswerBoundary?.({outcome:"workflow_task_reconciled",reason:"current_intent_none"});
  }
  if(!keys(first,Object.hasOwn(first??{},"workflowIntent")?["calls","text","safety","historyIntent","workflowIntent"]:Object.hasOwn(first??{},"historyIntent")?["calls","text","safety","historyIntent"]:Object.hasOwn(first??{},"safety")?["calls","text","safety"]:["calls","text"])||!Array.isArray(first.calls)||first.calls.length>4||typeof first.text!=="string"||first.text.length>12000)fail("ASK_READ_PROVIDER_INVALID");
- if(taskPlan){first.taskPlan=taskPlan;first=reconcileNamedProfileRead(first,context,pets)??first;first=clarifyUnboundHistoryPronoun(first,context,pets);first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
+ if(taskPlan){first.taskPlan=taskPlan;first=recoverOwnerHistoryIntent(first,context,pets,references)??reconcileNamedProfileRead(first,context,pets)??first;first=clarifyUnboundHistoryPronoun(first,context,pets);first=fulfillReferenceReads(first,references);taskPlan=first.taskPlan;context.taskPlan=taskPlan;}
  const explicitBasis=explicitRequestedTimeBasis(context.question);
  if(explicitBasis&&taskPlan?.some(t=>t.needsHistory&&t.kind==="saved_content")){
   taskPlan=taskPlan.map(t=>t.needsHistory?{...t,includeSourceDates:true,missing:t.missing.filter(k=>k!=="date_meaning")}:t);
@@ -500,6 +509,18 @@ export async function runReadOnlyAsk(input,deps) {
    deps.onAnswerBoundary?.({outcome:"clinical_reviewed",...reviewed.summary});
   }
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results,context.explicitCalendarScopes,context.question);
+  // An explicitly history-only inference is answerable without asserting a
+  // current condition. Genuine present emergencies and decisions keep priority.
+  if(taskPlan?.length===1&&historyOnlyInferenceQuestion(context.question)&&assessment?.medicationIntent==="none"
+   &&!assessment.currentEvents?.length&&assessment.careContext!=="current_concern"
+   &&!reviewed.policy?.current?.length&&!reviewed.policy?.decision&&answer.taskCompletion?.length===1){
+   const task=answer.taskCompletion[0];
+   answer={...answer,answer:"The older notes can tell you what was observed at the time. They can’t tell you whether it’s still happening today.",
+    ownerReports:[],verifiedSourceText:undefined,verifiedBriefText:undefined,replyType:"answer",limited:false,
+    sources:[],quotes:[],calculations:[],presentation:{sourceDates:[],contextRequired:false},
+    taskCompletion:[{...task,kind:"general_guidance",status:"complete",reason:"none",sourceCount:0}]};
+   results.length=0;bound.length=0;
+  }
   const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow,input.question);
   if(reviewed.workflow?.intent!=="none"&&reviewed.workflow)deps.onAnswerBoundary?.({outcome:"workflow_selected",firstIntent:first.workflowIntent??"none",finalIntent:reviewed.workflow.intent,appended:appendWorkflow,readCount:bound.length});
