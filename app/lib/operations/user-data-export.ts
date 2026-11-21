@@ -8,7 +8,7 @@ const EXPORT_ROW_LIMIT = 5_000;
 const EXPORT_USAGE_ROW_LIMIT = 20_000;
 // Bound the JSON workspace and leave headroom below the deployment's response limit.
 export const MAX_EXPORT_BYTES = 16 * 1024 * 1024;
-const MAX_EXPORT_DOWNLOAD_BYTES = 4 * 1024 * 1024;
+export const MAX_EXPORT_DOWNLOAD_BYTES = 4 * 1024 * 1024;
 const gzipExport = promisify(gzip);
 
 const USER_TABLES = [
@@ -25,11 +25,7 @@ const OMITTED_FIELDS = new Set(["context_used", "dedupe_key", "idempotency_key",
 
 export async function buildUserDataExport(admin: SupabaseClient, user: User, ownerClient: SupabaseClient) {
   const sections: Record<string, unknown[]> = {};
-  let rowBytes = 0;
-  const accountForRow = (row: Record<string, unknown>) => {
-    rowBytes += Buffer.byteLength(JSON.stringify(row), "utf8") + 1;
-    if (rowBytes > MAX_EXPORT_BYTES) throw new Error("EXPORT_TOO_LARGE");
-  };
+  const accountForRow = createExportByteBudget(MAX_EXPORT_BYTES);
   for (const [table, section] of USER_TABLES) {
     sections[section] = await readExportSection(admin, user, table, "*", accountForRow);
   }
@@ -45,6 +41,27 @@ export async function buildUserDataExport(admin: SupabaseClient, user: User, own
   return body;
 }
 
+export async function readPetRecordsForExport(ownerClient: SupabaseClient, user: User) {
+  const accountForRow = createExportByteBudget(1024 * 1024);
+  const [pets, entries] = await Promise.all([
+    readExportSection(ownerClient, user, "dog_profiles",
+      "id,name,species,breed,sex,age_value,age_unit,weight_value,weight_unit,current_food,main_concern,wellness_goal,avoid_ingredients,routine_note",
+      accountForRow),
+    readExportSection(ownerClient, user, "pet_care_entries",
+      "id,pet_profile_id,category,title,note,occurred_at,severity",
+      accountForRow, EXPORT_ROW_LIMIT, true),
+  ]);
+  return { pets, entries };
+}
+
+function createExportByteBudget(limit: number) {
+  let rowBytes = 0;
+  return (row: Record<string, unknown>) => {
+    rowBytes += Buffer.byteLength(JSON.stringify(row), "utf8") + 1;
+    if (rowBytes > limit) throw new Error("EXPORT_TOO_LARGE");
+  };
+}
+
 /** Preserve a plain JSON download when it fits and deliver a lossless archive otherwise. */
 export async function encodeUserDataExport(body: string) {
   if (Buffer.byteLength(body, "utf8") <= MAX_EXPORT_DOWNLOAD_BYTES) {
@@ -55,14 +72,14 @@ export async function encodeUserDataExport(body: string) {
   return { body: new Uint8Array(compressed), contentType: "application/gzip", suffix: ".json.gz" };
 }
 
-async function readExportSection(admin: SupabaseClient, user: User, table: string, columns: string, accountForRow: (row: Record<string, unknown>) => void, rowLimit = EXPORT_ROW_LIMIT) {
+async function readExportSection(admin: SupabaseClient, user: User, table: string, columns: string, accountForRow: (row: Record<string, unknown>) => void, rowLimit = EXPORT_ROW_LIMIT, activeOnly = false) {
   const rows: Record<string, unknown>[] = [];
   const key = table === "user_profiles" ? "user_id" : table === "pet_current_state" ? "pet_profile_id" : "id";
   let expectedTotal: number | null = null;
   do {
-    const { data, error, count } = await admin.from(table)
-      .select(columns, { count: "exact" }).eq("user_id", user.id)
-      .order(key, { ascending: true }).range(rows.length, rows.length + 499);
+    const query = admin.from(table).select(columns, { count: "exact" }).eq("user_id", user.id);
+    if (activeOnly) query.is("deleted_at", null);
+    const { data, error, count } = await query.order(key, { ascending: true }).range(rows.length, rows.length + 499);
     if (error) throw new Error(`EXPORT_QUERY_FAILED_${table.toUpperCase()}`);
     if (count === null || !Number.isSafeInteger(count) || count < 0) throw new Error("EXPORT_COUNT_UNAVAILABLE");
     if (count > rowLimit) throw new Error("EXPORT_TOO_LARGE");

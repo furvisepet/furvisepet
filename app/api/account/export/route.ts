@@ -2,7 +2,7 @@ import { getAuthenticatedApiContext } from "../../../lib/authenticated-api-serve
 import { createOperationsAdminClient } from "../../../lib/operations/admin-client";
 import { emitOperationalEvent } from "../../../lib/operations/events";
 import { buildSupportReference } from "../../../lib/operations/support-reference";
-import { buildUserDataExport, encodeUserDataExport } from "../../../lib/operations/user-data-export";
+import { buildUserDataExport, encodeUserDataExport, MAX_EXPORT_DOWNLOAD_BYTES, readPetRecordsForExport } from "../../../lib/operations/user-data-export";
 import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
 import { beginRateLimitedRequest } from "../../../lib/security/rate-limit";
 import { requireRecentInteractiveAuthentication } from "../../../lib/security/recent-auth";
@@ -14,14 +14,31 @@ export async function POST(request: Request) {
   const recentAuth = await requireRecentInteractiveAuthentication(context);
   if (!recentAuth.allowed) return safeError(recentAuth.code, "Sign in again before exporting your data.", requestId, 401);
 
+  const params = new URL(request.url).searchParams;
+  const wantsPetRecords = params.get("format") === "pet-records-pdf";
+  const timeZone = safeExportTimeZone(params.get("tz"));
+  const payload = wantsPetRecords ? { version: 1, format: "pet-records-pdf", timeZone } : { version: 1 };
+
   const prepareDownload = async () => {
     const started = Date.now();
     emitOperationalEvent({ actorId: context.userId, eventType: "data_export_started", requestId, route: "/api/account/export", severity: "info" });
     try {
-      const body = await buildUserDataExport(createOperationsAdminClient(), context.user, context.supabase);
-      const { body: download, contentType, suffix } = await encodeUserDataExport(body);
+      const date = new Date();
+      const stamp = date.toISOString().slice(0, 10);
+      let file: { body: BodyInit; contentType: string; name: string };
+      if (wantsPetRecords) {
+        const { renderPetRecordsPdf } = await import("../../../lib/operations/pet-records-pdf");
+        const records = await readPetRecordsForExport(context.supabase, context.user);
+        const bytes = await renderPetRecordsPdf(records, { date, timeZone });
+        if (bytes.byteLength > MAX_EXPORT_DOWNLOAD_BYTES) throw new Error("EXPORT_TOO_LARGE");
+        file = { body: Buffer.from(bytes), contentType: "application/pdf", name: "furvise-pet-care-records-" + stamp + ".pdf" };
+      } else {
+        const body = await buildUserDataExport(createOperationsAdminClient(), context.user, context.supabase);
+        const encoded = await encodeUserDataExport(body);
+        file = { body: encoded.body, contentType: encoded.contentType, name: "furvise-data-" + stamp + encoded.suffix };
+      }
       emitOperationalEvent({ actorId: context.userId, durationMs: Date.now() - started, eventType: "data_export_completed", requestId, route: "/api/account/export", severity: "info" });
-      return new Response(download, { headers: { "Cache-Control": "private, no-store, max-age=0", "Content-Disposition": 'attachment; filename="furvise-data-' + new Date().toISOString().slice(0, 10) + suffix + '"', "Content-Type": contentType, "X-Content-Type-Options": "nosniff" } });
+      return new Response(file.body, { headers: { "Cache-Control": "private, no-store, max-age=0", "Content-Disposition": 'attachment; filename="' + file.name + '"', "Content-Type": file.contentType, "X-Content-Type-Options": "nosniff" } });
     } catch (error) {
       const code = error instanceof Error && error.message === "EXPORT_TOO_LARGE" ? "EXPORT_TOO_LARGE" : "EXPORT_FAILED";
       const diagnostic = error instanceof Error && /^EXPORT_(QUERY_FAILED_[A-Z_]+|COUNT_UNAVAILABLE|INCOMPLETE|CHANGED_DURING_READ|TOO_LARGE)$/.test(error.message) ? error.message : code;
@@ -31,7 +48,7 @@ export async function POST(request: Request) {
   };
 
   const gate = await beginIdempotentRateLimitedOperation({
-    operationType: "account.data.export", payload: { version: 1 }, policy: "DATA_EXPORT",
+    operationType: "account.data.export", payload, policy: "DATA_EXPORT",
     request, route: "/api/account/export", supabase: context.supabase, userId: context.userId,
     reconcilePersistedReplay: async ({ claimOutcome, storedResponse }) => {
       if (claimOutcome !== "completed" || !storedResponse.ok) return null;
@@ -40,7 +57,7 @@ export async function POST(request: Request) {
       const replayId = crypto.randomUUID();
       const rate = await beginRateLimitedRequest({
         idempotencyKey: replayId, request, requestId: replayId,
-        payload: { version: 1 }, policy: "DATA_EXPORT", route: "/api/account/export", userId: context.userId,
+        payload, policy: "DATA_EXPORT", route: "/api/account/export", userId: context.userId,
       });
       if (!rate.allowed) return rate.response;
       const replay = await prepareDownload();
@@ -63,4 +80,13 @@ export async function POST(request: Request) {
 
 function safeError(code: string, error: string, requestId: string, status: number) {
   return Response.json({ code, error, supportReference: buildSupportReference({ code, requestId }) }, { headers: { "Cache-Control": "private, no-store, max-age=0" }, status });
+}
+
+function safeExportTimeZone(value: string | null) {
+  if (!value || value.length > 64) return "UTC";
+  try {
+    return new Intl.DateTimeFormat("en", { timeZone: value }).resolvedOptions().timeZone;
+  } catch {
+    return "UTC";
+  }
 }
