@@ -312,7 +312,10 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
   // If the main statement was removed by the date guard, a lone "also"
   // sentence is only a supplement. Lead with the verified excerpt instead.
   const supplementOnly=/^(?:it|the (?:same )?(?:saved )?(?:note|record|entry)) also (?:says|notes|mentions|records)\b[^.!?]*[.!?]?$/i.test(text.trim());
-  const sourceOnly=(!text.trim()||supplementOnly)&&tasks.length===collectionTasks.length&&collectionTasks.length>0
+  const excludedAlternativeOnly=/^\s*(?:what|which)\b/i.test(question)
+   &&!/\b(?:avoid|rule out|exclude|not|never|no)\b/i.test(question)
+   &&/^(?:the )?(?:(?:saved )?(?:note|record|entry)) (?:does not|doesn['’]t|did not|didn['’]t) (?:record|say|mention|show)\b[^.!?]*[.!?]?$/i.test(text.trim());
+  const sourceOnly=(!text.trim()||supplementOnly||excludedAlternativeOnly)&&tasks.length===collectionTasks.length&&collectionTasks.length>0
    &&tasks.every(t=>t.status==="complete"&&!t.missing.length)
    &&uniqueFacts.length===selectedDatedFacts.length&&uniqueFacts.length<=2
    &&uniqueFacts.every(f=>{

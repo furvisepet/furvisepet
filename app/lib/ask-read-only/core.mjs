@@ -5,7 +5,7 @@ import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
 import { explicitCalendarScopes, explicitRequestedTimeBasis, recoverBoundedCalendarRead,recoverExplicitHistoryComparison,recoverWeightPeriodEndpoints,clarifyUnboundHistoryPronoun,namedPetsForHistory } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
-import { recoverOwnerHistoryIntent, historyOnlyInferenceQuestion, verifiedOwnerNoteTopic } from "./owner-history-intent.mjs";
+import { recoverOwnerHistoryIntent, historyOnlyInferenceQuestion, retainedNoteQuestionTerms, verifiedOwnerNoteTopic } from "./owner-history-intent.mjs";
 import { calculateReadSources, presentBodyWeightComparison, readSourceMeasurements } from "./calculations.mjs";
 /**
  * Read-only Ask capability protocol. No canonical intent planner and no mutations.
@@ -581,8 +581,10 @@ export async function runReadOnlyAsk(input,deps) {
   }
  }
  const topicRead=bound.length===1&&bound[0].id==="owner-note-topic"?bound[0].request:null;
- if(topicRead&&taskPlan?.length===1&&!emergency&&!acquired[0].unavailable){
-  const match=verifiedOwnerNoteTopic(topicRead.terms,sources);
+ const noteTerms=bound.length===1&&bound[0].id==="owner-note-follow-up"
+  &&sources.length===1&&!results[0].unmet.length?retainedNoteQuestionTerms(context.question):[];
+ if((topicRead||noteTerms.length)&&taskPlan?.length===1&&!emergency&&!acquired[0].unavailable){
+  const match=topicRead?verifiedOwnerNoteTopic(topicRead.terms,sources):verifiedOwnerNoteTopic(noteTerms,sources,1);
   if(match){
    const {source,excerpt}=match;
    const fact="You wrote: “"+excerpt+"”";

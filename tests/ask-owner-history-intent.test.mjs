@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { reconcileNamedProfileRead,runReadOnlyAsk } from "../app/lib/ask-read-only/core.mjs";
-import { recoverOwnerHistoryIntent,historyOnlyInferenceQuestion } from "../app/lib/ask-read-only/owner-history-intent.mjs";
+import { recoverOwnerHistoryIntent, retainedNoteQuestionTerms, verifiedOwnerNoteTopic,historyOnlyInferenceQuestion } from "../app/lib/ask-read-only/owner-history-intent.mjs";
 import { carryReadReferences,restoreReadReferences } from "../app/lib/ask-read-only/references.mjs";
 import { normalizeReadTemporalScope } from "../app/lib/ask-read-only/temporal-scope.mjs";
 import { fulfillReferenceReads } from "../app/lib/ask-read-only/task-components.mjs";
@@ -141,4 +141,19 @@ test("an owner-wording follow-up reopens one immediately used journal note",()=>
  assert.equal(plan.calls[0].name,"read_referenced_sources");
  assert.equal(recoverOwnerHistoryIntent(first(),q,pets,[ref,{...ref,handle:"r2"}]),null);
  assert.equal(recoverOwnerHistoryIntent(first(),{...q,question:"Did I mention that in this chat?"},pets,[ref]),null);
+});
+
+test("a value or topic in an immediate note follow-up can select the original sentence",()=>{
+ const note={body:"The saved meal changed to whitefish. No venison food switch was recorded."};
+ assert.equal(verifiedOwnerNoteTopic(retainedNoteQuestionTerms("Was that venison?"),[note],1).excerpt,
+  "No venison food switch was recorded.");
+ const q={...context("Did I mention any change in breathing at that visit?"),dialogue:[
+  {role:"user",text:"How much did Luna weigh at the July 2025 checkup?"},
+  {role:"assistant",text:"Luna weighed 5 kg then."}
+ ]};
+ const ref={handle:"r1",usedInPreviousAnswer:true,request:{kind:"history",pet:pets[0],orderBy:"event",expectedSources:[{id:"saved-checkup"}]}};
+ const plan=recoverOwnerHistoryIntent(first(),q,pets,[ref]);
+ assert.deepEqual(retainedNoteQuestionTerms(q.question),["breathing"]);
+ assert.equal(plan.calls[0].name,"read_referenced_sources");
+ assert.deepEqual(plan.taskPlan[0].missing,[]);
 });

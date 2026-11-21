@@ -5,6 +5,14 @@ const resolvedScopeFields=["pet","date","year","date_meaning","which_record"];
 const firstVisit=/\b(?:first (?:got|adopted|brought)\b|(?:first |just )?(?:came|brought|bring) (?:\w+ )?home\b|(?:when|after) (?:\w+ )?(?:arrived|was adopted)\b|first (?:collar|harness|meal|toy)\b)\b/i;
 const singleReference=/\b(?:that|same|this) (?:saved |first )?(?:visit|appointment|checkup|note|entry|record|reading|weigh-in|event|report|measurement)\b/i;
 
+/** For a directly referred note, a subject term can select a verbatim sentence. */
+export function retainedNoteQuestionTerms(question){
+ const identity=/^\s*(?:was|were) (?:that|it|those)\s+([\p{L}][\p{L}-]{3,30})\s*\??$/iu.exec(question)?.[1];
+ const topic=/^\s*did (?:i|we) (?:say|note|write|record|mention)\b[^?!.]{0,72}\b(?:in|about)\s+([\p{L}][\p{L}-]{3,30})\s+(?:at|in|during|on)\s+(?:that|the same)\s+(?:visit|appointment|checkup|check|note|entry|record)\s*\??$/iu.exec(question)?.[1];
+ const word=identity??topic;
+ return word?[word.toLowerCase()]:[];
+}
+
 export function historyOnlyInferenceQuestion(question){
  return /^[^.!?]+\??$/.test(question.trim())
   && /^(?:given|based (?:only )?on|from|using|with)\b[^?]{0,55}\b(?:old|older|past|historical|previous)\b[^?]{0,30}\b(?:records?|notes?|entries|reports?)\b/i.test(question)
@@ -70,12 +78,15 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
  const noteFollowup=/^\s*did (?:i|we) (?:say|mention|write|note|record)\b[^?!]{1,115}\??$/i.test(question)
   &&/\b(?:it|that|this|there)\b/i.test(question)
   &&!/\b(?:chat|conversation|earlier here|today|new note|different note|should|can i)\b/i.test(question);
- if(noteFollowup&&priorQuestion?.role==="user"&&/^\s*what did (?:i|we) (?:write|note|record|say|write down) about\b/i.test(priorQuestion.text)
+ const retainedTerms=retainedNoteQuestionTerms(question);
+ const priorWasNoteTopic=priorQuestion?.role==="user"&&/^\s*what did (?:i|we) (?:write|note|record|say|write down) about\b/i.test(priorQuestion.text);
+ if((noteFollowup&&priorWasNoteTopic||retainedTerms.length&&priorQuestion?.role==="user")
   &&context.dialogue.at(-1)?.role==="assistant"&&tasks?.length&&safety&&["none","clinical_history"].includes(safety.careContext)
   &&safety.medicationIntent==="none"&&!safety.currentEvents?.length&&!safety.conditionalEvents?.length
   &&!safety.eventAssessments?.some(event=>event.occurrence!=="historical")
   &&safety.missingContext.every(key=>resolvedScopeFields.includes(key))
-  &&tasks.every(task=>historyTaskKinds.includes(task.kind)&&task.missing.every(key=>resolvedScopeFields.includes(key)))){
+  &&tasks.every(task=>(historyTaskKinds.includes(task.kind)||task.kind==="owner_observations")
+    &&task.missing.every(key=>resolvedScopeFields.includes(key)||key==="owner_observation"))){
   const active=references.filter(ref=>ref.usedInPreviousAnswer);
   if(active.length===1&&active[0].request.kind==="history"&&active[0].request.expectedSources?.length===1){
    const {handle,request}=active[0];
@@ -141,8 +152,8 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
 
 // A positive topic lookup can be answered with one directly matching
 // sentence. This does not assert uniqueness across the journal or completeness.
-export function verifiedOwnerNoteTopic(terms,sources){
- if(!terms||terms.length<2||terms.some(term=>term.length<4))return null;
+export function verifiedOwnerNoteTopic(terms,sources,minTerms=2){
+ if(!terms||terms.length<minTerms||terms.some(term=>term.length<4))return null;
  const segmenter=new Intl.Segmenter("en",{granularity:"sentence"});
  const matches=[];
  for(const source of sources){
