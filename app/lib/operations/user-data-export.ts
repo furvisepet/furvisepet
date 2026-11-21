@@ -4,6 +4,8 @@ import { gzip } from "node:zlib";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 const EXPORT_ROW_LIMIT = 5_000;
+// Usage records contain a fixed projection of small scalar fields.
+const EXPORT_USAGE_ROW_LIMIT = 20_000;
 // Bound the JSON workspace and leave headroom below the deployment's response limit.
 export const MAX_EXPORT_BYTES = 16 * 1024 * 1024;
 const MAX_EXPORT_DOWNLOAD_BYTES = 4 * 1024 * 1024;
@@ -33,7 +35,7 @@ export async function buildUserDataExport(admin: SupabaseClient, user: User, own
   }
   // Usage history is intentionally readable through the authenticated owner,
   // not the operations service role. Keep its existing RLS boundary intact.
-  const usage = await readExportSection(ownerClient, user, "ai_usage_events", "feature,status,credits_used,period_start,created_at,completed_at", accountForRow);
+  const usage = await readExportSection(ownerClient, user, "ai_usage_events", "feature,status,credits_used,period_start,created_at,completed_at", accountForRow, EXPORT_USAGE_ROW_LIMIT);
   const document = {
     account: { confirmedAt: user.email_confirmed_at || null, createdAt: user.created_at, email: user.email || null, id: user.id },
     aiUsage: usage || [], exportedAt: new Date().toISOString(), formatVersion: 1, ...sections,
@@ -53,7 +55,7 @@ export async function encodeUserDataExport(body: string) {
   return { body: new Uint8Array(compressed), contentType: "application/gzip", suffix: ".json.gz" };
 }
 
-async function readExportSection(admin: SupabaseClient, user: User, table: string, columns: string, accountForRow: (row: Record<string, unknown>) => void) {
+async function readExportSection(admin: SupabaseClient, user: User, table: string, columns: string, accountForRow: (row: Record<string, unknown>) => void, rowLimit = EXPORT_ROW_LIMIT) {
   const rows: Record<string, unknown>[] = [];
   const key = table === "user_profiles" ? "user_id" : table === "pet_current_state" ? "pet_profile_id" : "id";
   let expectedTotal: number | null = null;
@@ -63,7 +65,7 @@ async function readExportSection(admin: SupabaseClient, user: User, table: strin
       .order(key, { ascending: true }).range(rows.length, rows.length + 499);
     if (error) throw new Error(`EXPORT_QUERY_FAILED_${table.toUpperCase()}`);
     if (count === null || !Number.isSafeInteger(count) || count < 0) throw new Error("EXPORT_COUNT_UNAVAILABLE");
-    if (count > EXPORT_ROW_LIMIT) throw new Error("EXPORT_TOO_LARGE");
+    if (count > rowLimit) throw new Error("EXPORT_TOO_LARGE");
     if (expectedTotal !== null && count !== expectedTotal) throw new Error("EXPORT_CHANGED_DURING_READ");
     expectedTotal = count;
     // A short page may be the API's configured cap, not the end of the table.
