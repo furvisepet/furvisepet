@@ -271,7 +271,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
      const quoted=row=>String.fromCharCode(0x201c)+row.body.trim()+String.fromCharCode(0x201d);
      const preserveRows=rows.length>2||/\b(?:lines?|bullets?|timeline)\b/i.test(question);
      const facts=preserveRows
-       ?rows.map(row=>(/\bbullets?\b/i.test(question)?"- ":"")+row.eventAt.slice(0,10)+" — "+quoted(row))
+       ?rows.map(row=>(/\bbullets?\b/i.test(question)?"- ":"")+row.eventAt.slice(0,10)+", "+quoted(row))
        :rows.length===2
        ?["The earlier saved entry for "+rows[0].petName+" ("+rows[0].eventAt.slice(0,10)+") says "+quoted(rows[0])+
          " The later entry ("+rows[1].eventAt.slice(0,10)+") says "+quoted(rows[1])]
