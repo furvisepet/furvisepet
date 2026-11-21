@@ -30,7 +30,7 @@ test('account data requests use the fresh same-origin session after password rea
   const page = read('app/settings/data-privacy/page.tsx');
   const login = read('app/login/page.tsx');
   assert.match(login, /if \(isReauthentication\) \{[^}]*window\.location\.replace\(nextPath\)/);
-  assert.match(page, /"\/api\/account\/export",\s*\{ credentials: "same-origin", method: "POST" \}/);
+  assert.match(page, /endpoint,\s*\{ credentials: "same-origin", method: "POST" \}/);
   assert.match(page, /"\/api\/account\/delete",[\s\S]*credentials: "same-origin"/);
   assert.doesNotMatch(page, /getSession|Authorization|authorizationHeaders/);
 });

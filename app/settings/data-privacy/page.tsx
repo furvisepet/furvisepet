@@ -15,23 +15,25 @@ const forestButtonClass = "![--text-inverse:var(--warm-cream)] !bg-[var(--deep-f
 export default function DataPrivacyPage() {
   const { status } = useRequireConfirmedSupabaseAuth();
   const [reauthRequired, setReauthRequired] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "account" | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  async function exportAccountData() {
-    setExporting(true);
+  async function exportAccountData(format: "pdf" | "account") {
+    setExporting(format);
     setError("");
     setMessage("");
     setReauthRequired(false);
     try {
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const endpoint = format === "pdf" ? "/api/account/export?" + new URLSearchParams({ format: "pet-records-pdf", tz: timeZone }) : "/api/account/export";
       const response = await idempotentClientFetch(
-        "/api/account/export",
+        endpoint,
         { credentials: "same-origin", method: "POST" },
-        "account-data-export",
+        format === "pdf" ? "pet-records-pdf:" + timeZone : "account-data-export",
       );
       if (!response.ok) {
         const body = await response.json().catch(() => null);
@@ -39,13 +41,14 @@ export default function DataPrivacyPage() {
         throw new Error(body?.error || "Your export could not be prepared.");
       }
       const blob = await response.blob();
+      const date = new Date().toISOString().slice(0, 10);
       const suffix = blob.type === "application/gzip" ? ".json.gz" : ".json";
-      downloadGeneratedFile(blob, `furvise-data-${new Date().toISOString().slice(0, 10)}${suffix}`);
-      setMessage("Your Furvise data export is ready.");
+      downloadGeneratedFile(blob, format === "pdf" ? `furvise-pet-care-records-${date}.pdf` : `furvise-data-${date}${suffix}`);
+      setMessage(format === "pdf" ? "Your pet care PDF is ready." : "Your Furvise data export is ready.");
     } catch (exportError) {
       setError(exportError instanceof Error ? exportError.message : "Your export could not be prepared.");
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   }
 
@@ -96,10 +99,14 @@ export default function DataPrivacyPage() {
         <div className="pb-6">
           <section className="border-b border-[var(--line)] py-10" aria-labelledby="download-data-heading">
             <h3 className="app-section-title" id="download-data-heading">DOWNLOAD YOUR DATA</h3>
-            <p className="mt-3 max-w-[640px] leading-7 text-[var(--text-secondary)]">Get a copy of the information stored in your Furvise account.</p>
-            <PrimaryButton className={`${forestButtonClass} mt-6 w-full sm:w-auto`} disabled={exporting || deleting} loading={exporting} onClick={() => void exportAccountData()} type="button">
-              {exporting ? "Preparing download..." : "Download data"}
+            <p className="mt-3 max-w-[640px] leading-7 text-[var(--text-secondary)]">Get a readable PDF of your pet profiles and dated care entries.</p>
+            <PrimaryButton className={`${forestButtonClass} mt-6 w-full sm:w-auto`} disabled={Boolean(exporting) || deleting} loading={exporting === "pdf"} onClick={() => void exportAccountData("pdf")} type="button">
+              {exporting === "pdf" ? "Preparing PDF..." : "Download pet care records (PDF)"}
             </PrimaryButton>
+            <p className="mt-6 text-sm text-[var(--text-secondary)]">The full account export includes Ask conversations and account activity.</p>
+            <SecondaryButton className="mt-3 w-full sm:w-auto" disabled={Boolean(exporting) || deleting} onClick={() => void exportAccountData("account")} type="button">
+              {exporting === "account" ? "Preparing download..." : "Download all account data (JSON)"}
+            </SecondaryButton>
           </section>
 
           <section className="py-10" aria-labelledby="delete-account-heading">
@@ -114,7 +121,7 @@ export default function DataPrivacyPage() {
                 <label className="mt-6 block text-sm font-semibold text-[var(--text-primary)]" htmlFor="delete-confirmation">Type DELETE to confirm</label>
                 <input className={`${accountInputClass} mt-2`} id="delete-confirmation" onChange={(event) => setDeleteConfirmation(event.target.value)} value={deleteConfirmation} />
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                  <PrimaryButton className={`${forestButtonClass} w-full sm:w-auto`} disabled={deleting || exporting || deleteConfirmation !== "DELETE"} loading={deleting} onClick={() => void deleteAccount()} type="button">
+                  <PrimaryButton className={`${forestButtonClass} w-full sm:w-auto`} disabled={deleting || Boolean(exporting) || deleteConfirmation !== "DELETE"} loading={deleting} onClick={() => void deleteAccount()} type="button">
                     {deleting ? "Deleting account..." : "Permanently delete account"}
                   </PrimaryButton>
                   <SecondaryButton className="w-full sm:w-auto" disabled={deleting} onClick={closeDeleteConfirmation} type="button">Cancel</SecondaryButton>

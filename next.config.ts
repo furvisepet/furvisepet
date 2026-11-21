@@ -10,10 +10,15 @@ const IMMUTABLE_NAVIGATION_ASSETS = [
   "/images/nav-more-v1.webp",
 ] as const;
 
+const pdfFontAssets = ["./public/fonts/*.ttf", "./node_modules/@fontsource/noto-sans-arabic/files/*-arabic-400-normal.woff", "./node_modules/@fontsource/noto-sans-arabic/files/*-arabic-700-normal.woff", "./node_modules/@fontsource/noto-sans-jp/files/*-japanese-400-normal.woff", "./node_modules/@fontsource/noto-sans-jp/files/*-japanese-700-normal.woff"];
+
 const nextConfig: NextConfig = {
   // Keep release builds within the shared laptop's memory budget.
   experimental: { cpus: 2 },
-  outputFileTracingIncludes: { "/api/vet-briefs/*/pdf": ["./app/lib/vet-brief/fonts/*", "./public/fonts/*.ttf", "./node_modules/@fontsource/noto-sans-arabic/files/*-arabic-400-normal.woff", "./node_modules/@fontsource/noto-sans-arabic/files/*-arabic-700-normal.woff", "./node_modules/@fontsource/noto-sans-jp/files/*-japanese-400-normal.woff", "./node_modules/@fontsource/noto-sans-jp/files/*-japanese-700-normal.woff"] },
+  outputFileTracingIncludes: {
+    "/api/vet-briefs/*/pdf": ["./app/lib/vet-brief/fonts/*", ...pdfFontAssets],
+    "/api/account/export": pdfFontAssets,
+  },
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   // Keep the Next.js development route indicator out of local screenshot QA.
