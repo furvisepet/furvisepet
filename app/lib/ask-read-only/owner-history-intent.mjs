@@ -17,14 +17,36 @@ export function historyOnlyInferenceQuestion(question){
  * The first-stage judgment can block recovery for clinical or mixed work. */
 export function recoverOwnerHistoryIntent(first,context,pets,references){
  const tasks=first.taskPlan,question=context.question;
- if(tasks?.length!==1||!historyTaskKinds.includes(tasks[0].kind)||tasks[0].needsOwnerFacts)return null;
+ const named=namedPetsForHistory(question,pets);
  const safety=first.safety;
+ // A single explicit past-event question with a concrete location has an
+ // occurrence axis, even when the first pass split it into redundant tasks.
+ const place=/^\s*when did\s+[^?!.]+?\s+(?:at|to|near|in)\s+(?:(?:the|a|an)\s+)?([\p{L}\p{N}][\p{L}\p{N} -]{2,79})\s*\??$/iu.exec(question)?.[1]?.trim();
+ if(place&&named.length===1&&tasks?.length&&safety?.medicationIntent==="none"
+   &&!safety.currentEvents?.length&&!safety.conditionalEvents?.length
+   &&!safety.eventAssessments?.some(event=>event.occurrence!=="historical")
+   &&!explicitCalendarScopes(question).length&&!explicitRequestedTimeBasis(question)
+   &&!/\b(?:and|or|then|before|after|between|since|as of|earliest|latest|first)\b/i.test(question)
+   &&tasks.every(task=>historyTaskKinds.includes(task.kind)&&!task.reference&&!task.needsOwnerFacts
+    &&task.pets.every(handle=>handle===named[0].handle))
+   &&first.calls.every(call=>{
+    if(!["search_saved_records","read_pet_profile"].includes(call.name))return false;
+    try{return JSON.parse(call.arguments)?.pet===named[0].handle;}catch{return false;}
+   })){
+  const pet=named[0];
+  const args={pet:pet.handle,from:null,to:null,goal:"relevant_records",query:place,offset:0,orderBy:"event",order:"desc"};
+  return {...first,text:"",calls:[{id:"owner-event-date",name:"search_saved_records",arguments:JSON.stringify(args)}],
+   historyIntent:{requested:true,timeBasis:"event",pet:pet.handle},safety:{...safety,referent:"clear",missingContext:[]},
+   taskPlan:[{...tasks[0],kind:"saved_content",needsHistory:true,recordMode:"single",workflow:"none",
+    pets:[pet.handle],reference:null,includeSourceDates:false,missing:[]}]};
+ }
+ if(tasks?.length!==1||!historyTaskKinds.includes(tasks[0].kind)||tasks[0].needsOwnerFacts)return null;
  if(!safety||!["none","clinical_history"].includes(safety.careContext)||safety.medicationIntent!=="none"
   ||safety.currentEvents?.length||safety.conditionalEvents?.length
   ||safety.eventAssessments?.some(event=>event.occurrence!=="historical")
   ||safety.missingContext.some(key=>!resolvedScopeFields.includes(key))
   ||tasks[0].missing.some(key=>!resolvedScopeFields.includes(key)))return null;
- const task=tasks[0],named=namedPetsForHistory(question,pets);
+ const task=tasks[0];
  let args;
  try{args=first.calls.map(call=>JSON.parse(call.arguments));}catch{return null;}
  if(named.length>1||explicitCalendarScopes(question).length)return null;
@@ -56,12 +78,6 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
  // not need to choose between the observation date and the storage timestamp.
  const eventQuestion=/^\s*when\b/i.test(question)&&!explicitRequestedTimeBasis(question)
   &&!/\b(?:before|after|between|since|as of|last|latest|earliest|first)\b/i.test(question);
- // Use an explicit place phrase as a retrieval hint for an event-date lookup.
- const place=eventQuestion?/^\s*when did\s+[^?!.]+?\s+(?:at|to|near|in)\s+(?:(?:the|a|an)\s+)?([\p{L}\p{N}][\p{L}\p{N} -]{2,79})\s*\??$/iu.exec(question)?.[1]?.trim():null;
- if(place&&(task.needsHistory||first.historyIntent?.requested||task.missing.includes("date_meaning"))){
-  const args={pet:named[0].handle,from:null,to:null,goal:"relevant_records",query:place,offset:0,orderBy:"event",order:"desc"};
-  return recovered(named[0],[{id:"owner-event-date",name:"search_saved_records",arguments:JSON.stringify(args)}]);
- }
  if(first.calls.length&&eventQuestion&&first.calls.every(call=>call.name==="search_saved_records")
   &&args.every(call=>!call.recordedFrom&&!call.recordedTo)){
   const calls=first.calls.map((call,index)=>{

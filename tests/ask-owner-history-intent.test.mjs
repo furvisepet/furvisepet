@@ -75,6 +75,7 @@ test("an explicit place anchor recovers an event-date search without a proposed 
  const initial=first();
  initial.taskPlan[0].missing=["date_meaning"];
  initial.safety.missingContext=["date_meaning"];
+ initial.taskPlan.push({...initial.taskPlan[0],id:"t2"});
  const out=recoverOwnerHistoryIntent(initial,context("When did Luna stay at the orchard cottage?"),pets,[]);
  const args=JSON.parse(out.calls[0].arguments);
  assert.equal(args.query,"orchard cottage");

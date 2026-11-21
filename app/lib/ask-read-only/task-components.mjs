@@ -346,7 +346,10 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
  }
  if(clarify.length){
   const fields=[...new Set(clarify.flatMap(t=>t.missing.filter(k=>!policy?.active||!["medicine","prescription","vet_plan"].includes(k)).filter(k=>k!=="pet"||!policy?.current?.length&&!policy?.conditional?.length||t.needsHistory)))];
-  const question="Which "+fields.map(f=>missingLabels[f]).join(" and ")+" should I use?";
+  const requestedFields=fields.filter(field=>field!=="date_meaning");
+  const select=requestedFields.length?"Which "+requestedFields.map(field=>missingLabels[field]).join(" and ")+" should I use?":"";
+  const date=fields.includes("date_meaning")?"Do you mean when it happened or when the note was saved?":"";
+  const question=[select,date].filter(Boolean).join(" ");
   if(fields.length)text=!policy?.active&&tasks.every(t=>t.missing.length)?question:text+"\n\n"+question;
  }
  if(policy?.active&&!brief){
