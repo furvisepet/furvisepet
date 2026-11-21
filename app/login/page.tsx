@@ -421,7 +421,12 @@ function LoginPageContent() {
     }
     if (mode === "signin") {
       didRedirectRef.current = true;
-      router.replace(nextPath);
+      if (isReauthentication) {
+        // Read the server's new session cookies before rendering sensitive controls.
+        window.location.replace(nextPath);
+      } else {
+        router.replace(nextPath);
+      }
       return;
     }
     resetCaptchaAfterRequest();

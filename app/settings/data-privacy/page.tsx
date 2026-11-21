@@ -30,7 +30,7 @@ export default function DataPrivacyPage() {
     try {
       const response = await idempotentClientFetch(
         "/api/account/export",
-        { headers: await authorizationHeaders(), method: "POST" },
+        { credentials: "same-origin", method: "POST" },
         "account-data-export",
       );
       if (!response.ok) {
@@ -59,7 +59,8 @@ export default function DataPrivacyPage() {
         "/api/account/delete",
         {
           body: JSON.stringify({ confirmation: deleteConfirmation }),
-          headers: { ...(await authorizationHeaders()), "Content-Type": "application/json" },
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
           method: "POST",
         },
         "account-delete",
@@ -130,11 +131,4 @@ export default function DataPrivacyPage() {
       )}
     </AccountSettingsShell>
   );
-}
-
-async function authorizationHeaders() {
-  const client = getBrowserSupabase();
-  const { data } = await client?.auth.getSession() || { data: { session: null } };
-  if (!data.session?.access_token) throw new Error("Sign in again to continue.");
-  return { Authorization: `Bearer ${data.session.access_token}` };
 }
