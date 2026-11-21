@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { reconcileNamedProfileRead,runReadOnlyAsk } from "../app/lib/ask-read-only/core.mjs";
 import { recoverOwnerHistoryIntent,historyOnlyInferenceQuestion } from "../app/lib/ask-read-only/owner-history-intent.mjs";
 import { carryReadReferences,restoreReadReferences } from "../app/lib/ask-read-only/references.mjs";
+import { normalizeReadTemporalScope } from "../app/lib/ask-read-only/temporal-scope.mjs";
 import { fulfillReferenceReads } from "../app/lib/ask-read-only/task-components.mjs";
 
 const pets=[{id:"one",handle:"p1",name:"Luna"},{id:"two",handle:"p2",name:"Pepper"}];
@@ -109,4 +110,10 @@ test("a pet name in a place does not change the subject of an occurrence",()=>{
  assert.equal(args.pet,"p1");
  assert.equal(args.query,"maple lodge");
  assert.deepEqual(plan.taskPlan[0].pets,["p1"]);
+});
+
+test("an unbounded occurrence query has no competing recorded-time filter",()=>{
+ const query={from:null,to:null};
+ assert.deepEqual(normalizeReadTemporalScope("search_saved_records",query,"event"),{args:query,removedAxis:null});
+ assert.throws(()=>normalizeReadTemporalScope("search_saved_records",{...query,recordedFrom:"2020-01-01"},"event"),/ASK_READ_TEMPORAL_CONTRACT/);
 });
