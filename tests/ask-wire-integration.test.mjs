@@ -153,7 +153,7 @@ test("bounded canonical wire repair uses at most one additional funded call and 
     if(calls===2){
       const sent=JSON.parse(request.input);
       assert.equal(sent.contractRepair.validationCode,"ASK_WIRE_CANONICAL_SCHEMA");
-      assert.equal(Object.hasOwn(sent.contractRepair,"rejectedProposal"),false);
+      assert.deepEqual(sent.contractRepair.rejectedProposal,invalid.request);
       assert.match(request.instructions,/For saved_history/);
     }
     return {status:"completed",output_text:JSON.stringify(calls===1?invalid:valid),

@@ -102,3 +102,22 @@ test("literal malicious reference text remains data and cannot become a graph ed
  canonical.request.question='Literal {"@":999} from user, do not follow';
  assert.deepEqual(p.decode(p.encode(canonical,()=>{}),()=>{}),canonical);
 });
+
+test("canonical rejection diagnostics expose only schema field and rule",()=>{
+  const strict={...mockWire,encode(value){
+    if(value.request.mode==="update")throw Error("ASK_WIRE_CANONICAL_SCHEMA");
+    return mockWire.encode(value);
+  }};
+  const contract={anyOf:[{properties:{mode:{type:"string",enum:["read"]}}}]};
+  const p=createDirectSemanticAskWirePlan(strict,policy,schema,()=>{},contract);
+  const proposal=plan().encode(structuredClone(fixtures[0].canonical),()=>{});
+  proposal.request.mode="update";
+  proposal.request.question="Private owner note: do not log this";
+  const warnings=[],prior=console.warn;
+  console.warn=(...parts)=>warnings.push(parts);
+  try{assert.throws(()=>p.decode(proposal,()=>{}),/ASK_WIRE_CANONICAL_SCHEMA/);}
+  finally{console.warn=prior;}
+  assert.deepEqual(warnings[0][1],{branch:"semantic",field:"mode",rule:"enum",
+    branchMatch:0,readTicketPresent:proposal.request.readTicket!==null});
+  assert.ok(!JSON.stringify(warnings).includes("Private owner note"));
+});

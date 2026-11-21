@@ -100,7 +100,64 @@ function buildSlotVariants(contract) {
   return result;
 }
 
-export function createDirectSemanticAskWirePlan(wire, originalInstructions, canonicalRequestSchema, checkCompilation = () => {}) {
+// Report only contract-owned field names and rule categories. Never log a value,
+// free-form parser message, pet name, note, or provider response.
+function canonicalShapeDiagnostic(contract, request) {
+  const branches=Array.isArray(contract?.anyOf)?contract.anyOf:[contract];
+  let visited=0;
+  function fault(s,v,path="",depth=0) {
+    if(++visited>12000 || depth>32) return {field:path||"request",rule:"limit"};
+    if(!plain(s)) return null;
+    if(Array.isArray(s.anyOf)) {
+      const errors=s.anyOf.map(x=>fault(x,v,path,depth+1));
+      return errors.some(x=>x===null)?null:errors[0];
+    }
+    if(s.enum && !s.enum.some(x=>equal(x,v)))return {field:path||"request",rule:"enum"};
+    const types=s.type===undefined?[]:Array.isArray(s.type)?s.type:[s.type];
+    const kind=v===null?"null":Array.isArray(v)?"array":typeof v;
+    if(types.length && !types.some(t=>t===kind || t==="integer"&&kind==="number"&&Number.isInteger(v)))
+      return {field:path||"request",rule:"type"};
+    if(kind==="string") {
+      if(v.length<(s.minLength??0))return {field:path||"request",rule:"minLength"};
+      if(v.length>(s.maxLength??Infinity))return {field:path||"request",rule:"maxLength"};
+      if(s.pattern && !(new RegExp(s.pattern)).test(v))return {field:path||"request",rule:"pattern"};
+    }
+    if(kind==="array") {
+      if(v.length<(s.minItems??0))return {field:path||"request",rule:"minItems"};
+      if(v.length>(s.maxItems??Infinity))return {field:path||"request",rule:"maxItems"};
+      for(const item of v) {const e=fault(s.items??{},item,path,depth+1);if(e)return e;}
+    }
+    if(kind==="object") {
+      if(!plain(v))return {field:path||"request",rule:"type"};
+      for(const k of s.required??[])if(!Object.hasOwn(v,k))
+        return {field:[path,k].filter(Boolean).join("."),rule:"required"};
+      for(const [k,item] of Object.entries(v)) {
+        if(!Object.hasOwn(s.properties??{},k)) {
+          if(s.additionalProperties===false)return {field:path||"request",rule:"additionalProperties"};
+          continue;
+        }
+        const e=fault(s.properties[k],item,[path,k].filter(Boolean).join("."),depth+1);
+        if(e)return e;
+      }
+    }
+    return null;
+  }
+  const candidates=branches.filter(b=>plain(b?.properties));
+  const ranked=candidates.map(b=>{
+    const errors=[];
+    for(const [k,s] of Object.entries(b.properties)) {
+      const e=fault(s,request?.[k],k);
+      if(e)errors.push(e);
+    }
+    return {errors, match:(["mode","evidenceBasis","operation"].filter(k=>
+      b.properties[k]?.enum?.includes(request?.[k])).length)};
+  }).sort((a,b)=>a.errors.length-b.errors.length || b.match-a.match);
+  const best=ranked[0];
+  const first=best?.errors[0]??null;
+  return {field:first?.field??null,rule:first?.rule??"codec",branchMatch:best?.match??0};
+}
+
+export function createDirectSemanticAskWirePlan(wire, originalInstructions, canonicalRequestSchema, checkCompilation = () => {}, providerContract = /** @type {any} */ (null)) {
   checkCompilation();
   if (typeof wire?.encode !== "function" || typeof wire?.decode !== "function"
     || typeof originalInstructions !== "string" || originalInstructions.length < 1000) error("COMPILE_CONTRACT");
@@ -172,10 +229,10 @@ export function createDirectSemanticAskWirePlan(wire, originalInstructions, cano
     let graph;
     try { graph=wire.encode({request}); }
     catch(e) {
-      if(process.env.NODE_ENV==="production" && e instanceof Error && e.message==="ASK_WIRE_CANONICAL_SCHEMA")
+      if(e instanceof Error && e.message==="ASK_WIRE_CANONICAL_SCHEMA")
         console.warn("[Ask semantic slots] canonical shape rejected",
           {branch:request.version==="ask-request.v2"?"semantic":"catalog",
-            complexFieldCount:slots.complex.length,
+            ...canonicalShapeDiagnostic(providerContract,request),
             readTicketPresent:request.readTicket!==null && request.readTicket!==undefined});
       throw e;
     }

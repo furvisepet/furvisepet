@@ -69,7 +69,7 @@ test("compact runtime wire stays materially smaller than the full branch union",
 });
 test("production uses compact semantic slots to fit bounded input while preserving strict canonical review",()=>{
  const src=readFileSync(new URL("../app/lib/intelligence/interpret-ask.ts",import.meta.url),"utf8");
- assert.match(src,/createDirectSemanticAskWirePlan\(wire, wire\.instructions, askRequestSchema\(proposedSemanticFrameJsonSchema, context\), checkBudget\)/);
+ assert.match(src,/createDirectSemanticAskWirePlan\(wire, wire\.instructions, askRequestSchema\(proposedSemanticFrameJsonSchema, context\), checkBudget, canonicalSchema\.properties\.request\)/);
  assert.match(src,/const canonicalSchema = askRequestProviderSchema/);
  assert.match(src,/const wire = createAskWirePlan/);
 });
