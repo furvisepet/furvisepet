@@ -2,7 +2,7 @@ import { getAuthenticatedApiContext } from "../../../lib/authenticated-api-serve
 import { createOperationsAdminClient } from "../../../lib/operations/admin-client";
 import { emitOperationalEvent } from "../../../lib/operations/events";
 import { buildSupportReference } from "../../../lib/operations/support-reference";
-import { buildUserDataExport } from "../../../lib/operations/user-data-export";
+import { buildUserDataExport, encodeUserDataExport } from "../../../lib/operations/user-data-export";
 import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
 import { beginRateLimitedRequest } from "../../../lib/security/rate-limit";
 import { requireRecentInteractiveAuthentication } from "../../../lib/security/recent-auth";
@@ -19,8 +19,9 @@ export async function POST(request: Request) {
     emitOperationalEvent({ actorId: context.userId, eventType: "data_export_started", requestId, route: "/api/account/export", severity: "info" });
     try {
       const body = await buildUserDataExport(createOperationsAdminClient(), context.user, context.supabase);
+      const { body: download, contentType, suffix } = await encodeUserDataExport(body);
       emitOperationalEvent({ actorId: context.userId, durationMs: Date.now() - started, eventType: "data_export_completed", requestId, route: "/api/account/export", severity: "info" });
-      return new Response(body, { headers: { "Cache-Control": "private, no-store, max-age=0", "Content-Disposition": 'attachment; filename="furvise-data-' + new Date().toISOString().slice(0, 10) + '.json"', "Content-Type": "application/json; charset=utf-8", "X-Content-Type-Options": "nosniff" } });
+      return new Response(download, { headers: { "Cache-Control": "private, no-store, max-age=0", "Content-Disposition": 'attachment; filename="furvise-data-' + new Date().toISOString().slice(0, 10) + suffix + '"', "Content-Type": contentType, "X-Content-Type-Options": "nosniff" } });
     } catch (error) {
       const code = error instanceof Error && error.message === "EXPORT_TOO_LARGE" ? "EXPORT_TOO_LARGE" : "EXPORT_FAILED";
       const diagnostic = error instanceof Error && /^EXPORT_(QUERY_FAILED_[A-Z_]+|COUNT_UNAVAILABLE|INCOMPLETE|CHANGED_DURING_READ|TOO_LARGE)$/.test(error.message) ? error.message : code;

@@ -1,9 +1,13 @@
 import "server-only";
+import { promisify } from "node:util";
+import { gzip } from "node:zlib";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 const EXPORT_ROW_LIMIT = 5_000;
-// Leave headroom below the deployment's 4.5 MB response limit.
-export const MAX_EXPORT_BYTES = 4 * 1024 * 1024;
+// Bound the JSON workspace and leave headroom below the deployment's response limit.
+export const MAX_EXPORT_BYTES = 16 * 1024 * 1024;
+const MAX_EXPORT_DOWNLOAD_BYTES = 4 * 1024 * 1024;
+const gzipExport = promisify(gzip);
 
 const USER_TABLES = [
   ["user_profiles", "accountPreferences"], ["dog_profiles", "pets"], ["pet_care_entries", "careHistory"],
@@ -37,6 +41,16 @@ export async function buildUserDataExport(admin: SupabaseClient, user: User, own
   const body = JSON.stringify(document);
   if (Buffer.byteLength(body, "utf8") > MAX_EXPORT_BYTES) throw new Error("EXPORT_TOO_LARGE");
   return body;
+}
+
+/** Preserve a plain JSON download when it fits and deliver a lossless archive otherwise. */
+export async function encodeUserDataExport(body: string) {
+  if (Buffer.byteLength(body, "utf8") <= MAX_EXPORT_DOWNLOAD_BYTES) {
+    return { body, contentType: "application/json; charset=utf-8", suffix: ".json" };
+  }
+  const compressed = await gzipExport(body);
+  if (compressed.byteLength > MAX_EXPORT_DOWNLOAD_BYTES) throw new Error("EXPORT_TOO_LARGE");
+  return { body: new Uint8Array(compressed), contentType: "application/gzip", suffix: ".json.gz" };
 }
 
 async function readExportSection(admin: SupabaseClient, user: User, table: string, columns: string, accountForRow: (row: Record<string, unknown>) => void) {

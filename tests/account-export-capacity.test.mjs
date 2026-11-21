@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildUserDataExport } from "../app/lib/operations/user-data-export.ts";
+import { gunzipSync } from "node:zlib";
+import { buildUserDataExport, encodeUserDataExport } from "../app/lib/operations/user-data-export.ts";
 
 const user = { id: "qa-owner" };
 
@@ -35,9 +36,21 @@ test("a long account exports every paged conversation message beyond the old rec
 });
 
 test("the byte bound applies across sections before an oversized download is returned", async () => {
-  const large = [{ text: "é".repeat(1_100_000) }];
+  const large = [{ text: "é".repeat(4_400_000) }];
   await assert.rejects(
     buildUserDataExport(fakeClient({ pet_care_entries: large, ask_conversation_messages: large }), user, fakeClient({})),
     { message: "EXPORT_TOO_LARGE" },
   );
+});
+
+test("a large complete JSON export is downloaded as a lossless gzip archive", async () => {
+  const plain = await encodeUserDataExport('{"formatVersion":1}');
+  assert.equal(plain.suffix, ".json");
+  assert.equal(plain.contentType, "application/json; charset=utf-8");
+  const json = JSON.stringify({ conversationMessages: ["A long saved account. ".repeat(250_000)] });
+  const archive = await encodeUserDataExport(json);
+  assert.equal(archive.suffix, ".json.gz");
+  assert.equal(archive.contentType, "application/gzip");
+  assert.ok(archive.body.byteLength < 4 * 1024 * 1024);
+  assert.equal(gunzipSync(archive.body).toString("utf8"), json);
 });

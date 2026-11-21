@@ -39,7 +39,8 @@ export default function DataPrivacyPage() {
         throw new Error(body?.error || "Your export could not be prepared.");
       }
       const blob = await response.blob();
-      downloadGeneratedFile(blob, `furvise-data-${new Date().toISOString().slice(0, 10)}.json`);
+      const suffix = blob.type === "application/gzip" ? ".json.gz" : ".json";
+      downloadGeneratedFile(blob, `furvise-data-${new Date().toISOString().slice(0, 10)}${suffix}`);
       setMessage("Your Furvise data export is ready.");
     } catch (exportError) {
       setError(exportError instanceof Error ? exportError.message : "Your export could not be prepared.");
