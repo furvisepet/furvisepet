@@ -309,7 +309,10 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
   // Only a complete, source-only reply may use a conversational excerpt.
   // Mixed or broad collections keep the existing evidence list and coverage.
   const uniqueFacts=[...new Map(selectedDatedFacts.map(f=>[f.source,f])).values()];
-  const sourceOnly=!text.trim()&&tasks.length===collectionTasks.length&&collectionTasks.length>0
+  // If the main statement was removed by the date guard, a lone "also"
+  // sentence is only a supplement. Lead with the verified excerpt instead.
+  const supplementOnly=removedCalendar&&/^(?:it|the (?:same )?(?:note|record|entry)) also (?:says|notes|mentions|records)\b[^.!?]*[.!?]?$/i.test(text.trim());
+  const sourceOnly=(!text.trim()||supplementOnly)&&tasks.length===collectionTasks.length&&collectionTasks.length>0
    &&tasks.every(t=>t.status==="complete"&&!t.missing.length)
    &&uniqueFacts.length===selectedDatedFacts.length&&uniqueFacts.length<=2
    &&uniqueFacts.every(f=>{
@@ -327,7 +330,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
     const s=sources.find(s=>s.handle===f.source),withRecorded=collectionTasks.some(t=>t.includeSourceDates&&t.historyFacts.includes(f));
     return "\u2022 "+s.petName+"  -  event "+s.eventAt.slice(0,10)+(withRecorded?"; recorded "+s.recordedAt.slice(0,10):"")+": \u201c"+f.excerpt+"\u201d";
    }))].join("\n");
-  text=text?text+"\n\n"+verifiedHistoryText:verifiedHistoryText;
+  text=sourceOnly||!text?verifiedHistoryText:text+"\n\n"+verifiedHistoryText;
   answer={...answer,verifiedSourceText:verifiedHistoryText};
  }
  if(removedCalendar&&!selectedDatedFacts.length){
