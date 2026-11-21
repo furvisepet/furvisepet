@@ -171,7 +171,16 @@ export function recoverBoundedCalendarRead(first,context,pets){
   &&t.missing.every(k=>["pet","which_record","year","date_meaning"].includes(k)))
   &&safe&&first.calls.length<=4&&first.calls.every(call=>["search_saved_records","read_pet_profile"].includes(call.name)
    &&(()=>{try{return JSON.parse(call.arguments).pet===named[0].handle;}catch{return false;}})());
- const ordinaryDatedRead=!taskBound&&scopes.length===1&&scopes[0].precision!=="interval"&&safe&&first.taskPlan?.length
+ const noteDescription=/\b(?:in|from|according to)\s+(?:the |my |our )?([^?!.]{4,90})\s+(?:note|entry|record)\s*\??$/i.exec(context.question)?.[1];
+ const describedNote=!!noteDescription&&(scopes[0].precision==="month"||scopes[0].precision==="day")
+  &&explicitCalendarScopes(noteDescription).some(scope=>scope.from===scopes[0].from&&scope.to===scopes[0].to)
+  &&!context.dialogue?.length&&!context.references?.length;
+ const retrospectiveNoteSafe=describedNote&&first.safety?.careContext==="clinical_history"&&first.safety.medicationIntent==="none"
+  &&!first.safety.currentEvents?.length&&!first.safety.conditionalEvents?.length
+  &&!first.safety.eventAssessments?.some(event=>event.occurrence!=="historical")
+  &&first.safety.missingContext.every(k=>["pet","date","year","date_meaning","which_record"].includes(k));
+ const ordinaryDatedRead=(!taskBound||describedNote)&&scopes.length===1&&scopes[0].precision!=="interval"
+  &&(safe||retrospectiveNoteSafe)&&first.taskPlan?.length
   &&/^\s*(?:what|which|when|was|were|did|where|how much)\b/i.test(context.question)
   &&!/\b(?:and (?:what|when|how|why|should|did)|compare|diagnose|should|why|all|every|each|count|how many|summarize)\b/i.test(context.question)
   &&first.taskPlan.every(task=>["saved_content","general_guidance","clarification"].includes(task.kind)
@@ -196,7 +205,7 @@ export function recoverBoundedCalendarRead(first,context,pets){
   pet:named[0].handle,from:event?scope.from:null,to:event?scope.to:null,goal,alternatives:[],
   recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,orderBy:basis,query:null,offset:0,order
  })}));
- const taskPlan=ordinaryDatedRead&&!legacy?[{...first.taskPlan[0],kind:"saved_content",needsHistory:true,recordMode:"single",
+ const taskPlan=ordinaryDatedRead&&(!legacy||describedNote)?[{...first.taskPlan[0],kind:"saved_content",needsHistory:true,recordMode:"single",
   workflow:"none",pets:[named[0].handle],reference:null,missing:[]}]:taskBound?first.taskPlan.map(t=>t.needsHistory?{...t,pets:[named[0].handle],recordMode:scopes.length>1||scopes[0].precision==="interval"?"collection":t.recordMode,
   missing:t.missing.filter(k=>k!=="pet"&&k!=="year"&&k!=="date_meaning"&&(scopes.length===1&&scopes[0].precision!=="interval"||k!=="which_record"))}:t):first.taskPlan;
  return {first:{...first,text:"",taskPlan,historyIntent:{...first.historyIntent,requested:true,timeBasis:basis,pet:named[0].handle},
