@@ -1,7 +1,7 @@
 import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { PDFDocument, PDFName, type PDFPage } from "pdf-lib";
+import { PDFDocument, PDFHexString, PDFName, PDFOperator, PDFOperatorNames, type PDFFont, type PDFPage } from "pdf-lib";
 import { PDF_THEME } from "../vet-brief/pdf.ts";
 import { createBriefPdfText, UnsupportedBriefPdfTextError } from "../vet-brief/pdf-text.ts";
 
@@ -10,6 +10,7 @@ const WIDTH = 612;
 const HEIGHT = 792;
 const MARGIN = 48;
 const TEXT_WIDTH = WIDTH - 2 * MARGIN;
+const latinOnly = /^[\u0020-\u007e]*$/;
 const fontData = () => Promise.all([
   readFile(join(process.cwd(), "public/fonts/Inter-Regular.ttf")),
   readFile(join(process.cwd(), "public/fonts/Inter-Bold.ttf")),
@@ -73,6 +74,42 @@ export async function renderPetRecordsPdf(
     return normalized;
   }
 
+  function wrap(value: string, font: PDFFont, size: number, width: number) {
+    const source = supported(value.trim());
+    if (!latinOnly.test(source)) return layout.wrap(source, font, size, width);
+
+    const lines: string[] = [];
+    const spaceWidth = font.widthOfTextAtSize(" ", size);
+    let line = "";
+    let lineWidth = 0;
+    for (const word of source.split(/\s+/)) {
+      const wordWidth = font.widthOfTextAtSize(word, size);
+      if (wordWidth > width) return layout.wrap(source, font, size, width);
+      if (line && lineWidth + spaceWidth + wordWidth > width) {
+        lines.push(line);
+        line = word;
+        lineWidth = wordWidth;
+      } else {
+        lineWidth += line ? spaceWidth + wordWidth : wordWidth;
+        line = line ? line + " " + word : word;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function drawLine(value: string, font: PDFFont, size: number, x: number, y: number, width: number, color: typeof ink) {
+    if (!latinOnly.test(value)) {
+      layout.draw(page, value, font, size, x, y, width, color);
+      return;
+    }
+    // Use one text operation for common Latin lines while retaining searchable text.
+    const marked = pdf.context.obj({ ActualText: PDFHexString.fromText(value) });
+    page.pushOperators(PDFOperator.of(PDFOperatorNames.BeginMarkedContentSequence, [PDFName.of("Span"), marked.toString()]));
+    page.drawText(value, { x, y, font, size, color });
+    page.pushOperators(PDFOperator.of(PDFOperatorNames.EndMarkedContent));
+  }
+
   let page: PDFPage;
   let y = 0;
   let section = "Pet index";
@@ -85,8 +122,8 @@ export async function renderPetRecordsPdf(
   function reserve(height: number) {
     if (y - height >= 61) return;
     newPage();
-    const heading = layout.wrap(supported(section), bold, 10, TEXT_WIDTH)[0];
-    layout.draw(page, heading, bold, 10, MARGIN, y, TEXT_WIDTH, brand);
+    const heading = wrap(section, bold, 10, TEXT_WIDTH)[0];
+    drawLine(heading, bold, 10, MARGIN, y, TEXT_WIDTH, brand);
     y -= 23;
   }
   function write(value: string, options: { size?: number; strong?: boolean; color?: typeof ink; after?: number } = {}) {
@@ -94,9 +131,9 @@ export async function renderPetRecordsPdf(
     const { size = 10, strong = false, color = ink, after = 5 } = options;
     const font = strong ? bold : regular;
     for (const paragraph of value.split("\n")) {
-      for (const line of layout.wrap(supported(paragraph), font, size, TEXT_WIDTH)) {
+      for (const line of wrap(paragraph, font, size, TEXT_WIDTH)) {
         reserve(size * 1.4);
-        layout.draw(page, line, font, size, MARGIN, y, TEXT_WIDTH, color);
+        drawLine(line, font, size, MARGIN, y, TEXT_WIDTH, color);
         y -= size * 1.4;
       }
     }
@@ -121,8 +158,8 @@ export async function renderPetRecordsPdf(
     const indexPage = page;
     const top = y + 10;
     page.drawRectangle({ x: MARGIN - 4, y: y - 13, width: TEXT_WIDTH + 8, height: 24, color: accent });
-    const name = layout.wrap(supported(item.name), bold, 10, TEXT_WIDTH - 105)[0];
-    layout.draw(page, name, bold, 10, MARGIN, y - 2, TEXT_WIDTH - 105, brand);
+    const name = wrap(item.name, bold, 10, TEXT_WIDTH - 105)[0];
+    drawLine(name, bold, 10, MARGIN, y - 2, TEXT_WIDTH - 105, brand);
     page.drawText(String(item.entries.length) + " entries", { x: WIDTH - MARGIN - 83, y: y - 2, font: regular, size: 9, color: muted });
     y -= 27;
     return { indexPage, top };

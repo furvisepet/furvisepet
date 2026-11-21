@@ -40,9 +40,6 @@ export async function POST(request: Request) {
       emitOperationalEvent({ actorId: context.userId, durationMs: Date.now() - started, eventType: "data_export_completed", requestId, route: "/api/account/export", severity: "info" });
       return new Response(file.body, { headers: { "Cache-Control": "private, no-store, max-age=0", "Content-Disposition": 'attachment; filename="' + file.name + '"', "Content-Type": file.contentType, "X-Content-Type-Options": "nosniff" } });
     } catch (error) {
-      if (wantsPetRecords && error instanceof Error && error.name === "UnsupportedBriefPdfTextError") {
-        return safeError("PDF_TEXT_UNSUPPORTED", "Some characters cannot be printed in this report. Download all account data to get the original text.", requestId, 422);
-      }
       const code = error instanceof Error && error.message === "EXPORT_TOO_LARGE" ? "EXPORT_TOO_LARGE" : "EXPORT_FAILED";
       const diagnostic = error instanceof Error && /^EXPORT_(QUERY_FAILED_[A-Z_]+|COUNT_UNAVAILABLE|INCOMPLETE|CHANGED_DURING_READ|TOO_LARGE)$/.test(error.message) ? error.message : code;
       emitOperationalEvent({ actorId: context.userId, durationMs: Date.now() - started, errorCode: diagnostic, eventType: "application_error", requestId, route: "/api/account/export", severity: "high" });
