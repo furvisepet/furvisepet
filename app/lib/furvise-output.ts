@@ -153,7 +153,29 @@ export function askProseOnly(value: string): string {
 /** Bounded plain-text tables. Cells remain text, never HTML or Markdown. */
 export function parsePlainTable(text: string): { headers: string[]; rows: string[][] } | null {
   if (text.length > 3600) return null;
-  const lines = text.trim().split(/\r?\n/);
+  // A flattened pipe table still has explicit closing/opening pipes per row.
+  // Require a separator before interpreting these boundaries or blank rows.
+  const input = text.trim();
+  const flattened = !/[\r\n]/.test(input);
+  let lines = input.split(/\r?\n/);
+  if (flattened) {
+    // The first closing/opening pair follows a nonempty header row. Use
+    // that width to distinguish blank cells from subsequent row boundaries.
+    const headerEnd = input.search(/(?<=\|)[ \t]+(?=\|)/);
+    const width = (input.slice(0, headerEnd).match(/\|/g)?.length ?? 0) - 1;
+    if (headerEnd < 0 || width < 2 || width > 6) return null;
+    const row = new RegExp("^\\s*(\\|(?:[^|]*\\|){" + width + "})");
+    lines = [];
+    let rest = input;
+    while (rest.length && lines.length < 34) {
+      const match = row.exec(rest);
+      if (!match) return null;
+      lines.push(match[1]);
+      rest = rest.slice(match[0].length);
+      if (rest.length && !/^[ \t]+\|/.test(rest)) return null;
+    }
+    if (rest.length) return null;
+  }
   if (lines.length < 2 || lines.length > 34) return null;
   if (lines.some(line => !/^\s*\|.*\|\s*$/.test(line))) return null;
   const cells = lines.map(line => line.trim().slice(1, -1).split('|').map(cell => cell.trim()));
@@ -164,7 +186,8 @@ export function parsePlainTable(text: string): { headers: string[]; rows: string
   const hasSeparator = cells[1].every(cell => /^:?-{3,}:?$/.test(cell));
   const rows = cells.slice(hasSeparator ? 2 : 1);
   if (!rows.length && !hasSeparator) return null;
-  if (rows.some(row => !row.some(Boolean) || row.every(cell => /^:?-{3,}:?$/.test(cell)))) return null;
+  if (flattened && !hasSeparator) return null;
+  if (rows.some(row => !hasSeparator && !row.some(Boolean) || row.every(cell => /^:?-{3,}:?$/.test(cell)))) return null;
   return { headers: cells[0], rows };
 }
 

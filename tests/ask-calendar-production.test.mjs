@@ -592,3 +592,24 @@ test("a saved entry with an event-date request has one event axis",()=>{
  assert.equal(explicitRequestedTimeBasis("Give the event and recorded dates."),null);
  assert.equal(recoverBoundedCalendarRead(first,{question:"Give the event and recorded dates for QA Juniper 20Y in 2016."},pets),null);
 });
+
+test("period lists keep disjoint windows and resolve a shared trailing year",()=>{
+ assert.deepEqual(explicitCalendarScopes("Compare the notes from March, June, and October 2019."),[
+  {from:"2019-03-01",to:"2019-03-31",precision:"month"},
+  {from:"2019-06-01",to:"2019-06-30",precision:"month"},
+  {from:"2019-10-01",to:"2019-10-31",precision:"month"},
+ ]);
+});
+
+test("a three-period timeline recovers every owned window independently",()=>{
+ const pets=[{handle:"p1",name:"Maple"}];
+ const selection={calls:[],text:"Which saved result should I use?",
+  taskPlan:[{id:"t1",kind:"saved_content",needsHistory:true,recordMode:"single",pets:["p1"],reference:null,missing:["which_record"]}],
+  safety:{medicationIntent:"none",careContext:"none",referent:"essential_unknown",missingContext:["which_record"],eventAssessments:[]}};
+ const recovered=recoverExplicitHistoryComparison(selection,{question:"Give me a timeline of Maple’s journal entries across 2012, 2017 and 2023."},pets);
+ assert.equal(recovered.first.taskPlan[0].recordMode,"collection");
+ assert.deepEqual(recovered.first.taskPlan[0].missing,[]);
+ assert.deepEqual(recovered.first.calls.map(({arguments:args})=>JSON.parse(args)).map(({pet,from,to})=>[pet,from,to]),[
+  ["p1","2012-01-01","2012-12-31"],["p1","2017-01-01","2017-12-31"],["p1","2023-01-01","2023-12-31"]
+ ]);
+});
