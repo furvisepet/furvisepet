@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseAskConversationResponse,formatAskResponsePlainText} from '../app/lib/ask.mjs';
+import {renderTaskCompletion} from '../app/lib/ask-read-only/task-components.mjs';
 const base={title:'Furvise',summary:'The available notes describe a change.',sections:[],safetyNote:null,actions:['copy'],answerType:'history_summary'};
 test('settled partial answers retain a visible and copied notice after persistence reload',()=>{
  const stored=JSON.parse(JSON.stringify({...base,turn:{finalStage:'COMPLETED',answerOutcome:'limited',creditState:'released'}}));
@@ -38,4 +39,16 @@ test("a clarification does not show an unrelated completion failure",()=>{
  const parsed=parseAskConversationResponse({...base,answerType:"clarification",summary:"Which pet do you mean?",turn:{finalStage:"COMPLETED",answerOutcome:"limited"}});
  assert.equal(parsed.completionNotice,undefined);
  assert.equal(parsed.summary,"Which pet do you mean?");
+});
+
+test('a remaining supplement does not lead a complete sourced lookup',()=>{
+ const source={handle:'s1',kind:'history',petName:'Piper',eventAt:'2021-05-06T12:00:00Z',recordedAt:'2021-05-07T12:00:00Z',body:'Piper switched to oat-based kibble. No chicken switch was recorded.'};
+ const task={id:'t1',kind:'saved_content',needsHistory:true,recordMode:'collection',pets:['p1'],status:'complete',
+  reason:'none',missing:[],sources:['s1'],componentIndexes:[0],historyFacts:[{source:'s1',excerpt:source.body}],ownerFacts:[]};
+ const prose='In 2021, Piper changed to oat-based kibble. The note also says no chicken switch was recorded.';
+ const answer={answer:prose,replyType:'answer',sources:['s1'],quotes:[],calculations:[],
+  presentation:{},validatedParts:[{index:0,kind:'saved',text:prose}]};
+ const result=renderTaskCompletion(answer,[task],[source],null,[],[],'Which kibble did Piper switch to?');
+ assert.match(result.answer,/^On 2021-05-06, Piper's saved note says: .*switched to oat-based kibble/);
+ assert.doesNotMatch(result.answer,/^The note also/);
 });

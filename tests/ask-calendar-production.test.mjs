@@ -628,3 +628,18 @@ test("side-by-side measured observations bind two independent months on one owne
  assert.deepEqual(recovered.first.taskPlan[0].missing,[]);
  assert.equal(recoverExplicitHistoryComparison({...selection,taskPlan:[{...selection.taskPlan[0],reference:"r1"}]},{question},pets),null);
 });
+
+test("an explicitly described single dated note can be searched without a prior record ID",()=>{
+ const described={...first,taskPlan:[{...task,missing:["which_record"]}],safety:{...safety,missingContext:["date"]}};
+ const q="Was QA Juniper 20Y active in the June 2024 training note?";
+ for(const careContext of ["none","clinical_history"]){
+  const recovered=recoverBoundedCalendarRead({...described,safety:{...described.safety,careContext}}, {question:q},pets);
+  assert.ok(recovered);
+  assert.deepEqual(recovered.first.taskPlan[0].missing,[]);
+  assert.equal(recovered.first.taskPlan[0].recordMode,"single");
+  const {pet,from,to}=JSON.parse(recovered.first.calls[0].arguments);
+  assert.deepEqual({pet,from,to},{pet:"p1",from:"2024-06-01",to:"2024-06-30"});
+ }
+ const unresolved=recoverBoundedCalendarRead(described,{question:"Was QA Juniper 20Y active in June 2024?"},pets);
+ assert.deepEqual(unresolved.first.taskPlan[0].missing,["which_record"]);
+});

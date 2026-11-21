@@ -23,7 +23,7 @@ export function guardVerifiedSourceText(text:string,protectedText?:string) {
 export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:string) {
  if(!isReadOnlyResult(result))throw new Error("ASK_READ_RESULT_INVALID");
  const reviewed=result as {answer:{answer:string;replyType:"answer"|"clarification"|"refusal"|"partial";limited:boolean;clinicalUrgency?:"routine"|"urgent";presentation?:{contextRequired:boolean;sourceDates:Array<{kind:string;eventAt:string;recordedAt:string;pet:string|null}>};quotes:Array<{quote:string}>;calculations:Array<{text:string}>};sources:Array<{kind:string}>};
- const body=reviewed.answer;
+ const body=reviewed.answer as typeof reviewed.answer & {calculationPresented?:boolean};
  const coverageRows=(result as {coverage?:Array<{scope?:{kind?:string};unmet?:string[];hasMore?:boolean;hasPrevious?:boolean;truncated?:boolean;inspected?:number;returned?:number;queryScopeExhausted?:boolean}>}).coverage??[];
  const coverageMessages=readCoverageMessages(coverageRows);
  const dialogue=(result as {dialogueCoverage?:{partial?:boolean;omittedKnownMessages?:number;truncatedMessages?:number}}).dialogueCoverage;
@@ -61,7 +61,8 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  }
  // These values are server-verified result fields, not model prose claiming a write.
  const dateDetails=(body.presentation?.sourceDates??[]).filter(source=>!(checkedSummary.includes(source.eventAt.slice(0,10))&&checkedSummary.includes(source.recordedAt.slice(0,10))));
- const verifiedDetails=[...dateDetails.map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+source.eventAt+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+source.recordedAt+"."),...body.calculations.map(calculation=>calculation.text)];
+ const compactDate=(value:string)=>value.slice(0,10);
+ const verifiedDetails=[...dateDetails.map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+compactDate(source.eventAt)+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+compactDate(source.recordedAt)+"."),...(body.calculationPresented?[]:body.calculations.map(calculation=>calculation.text))];
  const taskCompletion=(body as typeof body & {taskCompletion?:Array<Record<string,unknown>>}).taskCompletion;
  let publishedTasks=stateRejected?taskCompletion?.map(task=>task.status==="complete"?{...task,status:"partial",reason:"publication_changed"}:task):taskCompletion;
  const summary=[checkedSummary,...verifiedDetails].join("\n");
@@ -73,7 +74,7 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  response.sections=[
   ...((body as typeof body & {ownerReports?:string[]}).ownerReports?.length?[{heading:"Owner reports  -  not saved-record evidence",items:(body as typeof body & {ownerReports:string[]}).ownerReports}]:[]),
   ...(body.quotes.some(quote=>!checkedSummary.includes(quote.quote))?[{heading:"Saved notes",items:body.quotes.filter(quote=>!checkedSummary.includes(quote.quote)).map(quote=>quote.quote)}]:[]),
-  ...(!taskCompletion&&body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),
+  ...(!body.calculationPresented&&!taskCompletion&&body.calculations.length?[{heading:"Calculation",items:body.calculations.map(calculation=>calculation.text)}]:[]),
   ...coverageSections
  ];
  response.actions=["copy"];

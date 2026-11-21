@@ -5,6 +5,14 @@ const resolvedScopeFields=["pet","date","year","date_meaning","which_record"];
 const firstVisit=/\b(?:first (?:got|adopted|brought)\b|(?:first |just )?(?:came|brought|bring) (?:\w+ )?home\b|(?:when|after) (?:\w+ )?(?:arrived|was adopted)\b|first (?:collar|harness|meal|toy)\b)\b/i;
 const singleReference=/\b(?:that|same|this) (?:saved |first )?(?:visit|appointment|checkup|note|entry|record|reading|weigh-in|event|report|measurement)\b/i;
 
+/** For a directly referred note, a subject term can select a verbatim sentence. */
+export function retainedNoteQuestionTerms(question){
+ const identity=/^\s*(?:was|were) (?:that|it|those)\s+([\p{L}][\p{L}-]{3,30})\s*\??$/iu.exec(question)?.[1];
+ const topic=/^\s*did (?:i|we) (?:say|note|write|record|mention)\b[^?!.]{0,72}\b(?:in|about)\s+([\p{L}][\p{L}-]{3,30})\s+(?:at|in|during|on)\s+(?:that|the same)\s+(?:visit|appointment|checkup|check|note|entry|record)\s*\??$/iu.exec(question)?.[1];
+ const word=identity??topic;
+ return word?[word.toLowerCase()]:[];
+}
+
 export function historyOnlyInferenceQuestion(question){
  return /^[^.!?]+\??$/.test(question.trim())
   && /^(?:given|based (?:only )?on|from|using|with)\b[^?]{0,55}\b(?:old|older|past|historical|previous)\b[^?]{0,30}\b(?:records?|notes?|entries|reports?)\b/i.test(question)
@@ -39,7 +47,62 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
    taskPlan:[{...tasks[0],kind:"saved_content",needsHistory:true,recordMode:"single",workflow:"none",
     pets:[pet.handle],reference:null,includeSourceDates:false,missing:[]}]};
  }
- if(tasks?.length!==1||!historyTaskKinds.includes(tasks[0].kind)||tasks[0].needsOwnerFacts)return null;
+ // A fresh, explicit owner-note topic resolves planner ambiguity about
+ // which read to run. The topic words remain retrieval hints until verified.
+ const topic=/^\s*what did (?:i|we) (?:write|note|record|say|write down) about\s+([^?.!]{1,120})\??$/i.exec(question)?.[1];
+ const freshTopic=topic&&named.length===1&&!context.dialogue?.length&&!references.length
+  &&!explicitCalendarScopes(question).length&&!explicitRequestedTimeBasis(question)
+  &&!/\b(?:earlier answer|previous result|then|and (?:what|when|why|how|did|should|can)|all|every|ever|always|never|latest|first|last|only|currently|today|should|can i)\b/i.test(question);
+ if(freshTopic&&tasks?.length&&safety&&["none","clinical_history"].includes(safety.careContext)
+  &&safety.medicationIntent==="none"&&!safety.currentEvents?.length&&!safety.conditionalEvents?.length
+  &&!safety.eventAssessments?.some(event=>event.occurrence!=="historical")
+  &&safety.missingContext.every(key=>resolvedScopeFields.includes(key))
+  &&tasks.every(task=>historyTaskKinds.includes(task.kind)&&!task.needsOwnerFacts
+    &&task.missing.every(key=>resolvedScopeFields.includes(key)))){
+  const pet=named[0];
+  const names=new Set(pet.name.toLowerCase().match(/[\p{L}]{3,}/gu)??[]);
+  const tokens=topic.toLowerCase().match(/[\p{L}]{3,}/gu)??[];
+  const terms=[...new Set(tokens.filter(word=>!names.has(word)
+   &&!["the","when","what","about","after","before","during","getting","being","with","from","that","those","this","have","having","said","wrote"].includes(word)))];
+  if(terms.length){
+   const args={pet:pet.handle,from:null,to:null,goal:"relevant_records",query:terms[0],alternatives:terms.slice(1,3),offset:0,orderBy:"event",order:"desc"};
+   return {...first,text:"",calls:[{id:"owner-note-topic",name:"search_saved_records",arguments:JSON.stringify(args)}],
+    historyIntent:{requested:true,timeBasis:"event",pet:pet.handle},safety:{...safety,referent:"clear",missingContext:[]},
+    taskPlan:[{...tasks[0],kind:"saved_content",needsHistory:true,recordMode:"single",workflow:"none",
+     pets:[pet.handle],reference:null,missing:[]}]};
+  }
+ }
+ // A short follow-up about what the owner said can refer to the one
+ // journal note just used, even when the planner mistakes it for chat text.
+ const priorQuestion=context.dialogue?.at(-2);
+ const noteFollowup=/^\s*did (?:i|we) (?:say|mention|write|note|record)\b[^?!]{1,115}\??$/i.test(question)
+  &&/\b(?:it|that|this|there)\b/i.test(question)
+  &&!/\b(?:chat|conversation|earlier here|today|new note|different note|should|can i)\b/i.test(question);
+ const retainedTerms=retainedNoteQuestionTerms(question);
+ const priorWasNoteTopic=priorQuestion?.role==="user"&&/^\s*what did (?:i|we) (?:write|note|record|say|write down) about\b/i.test(priorQuestion.text);
+ if((noteFollowup&&priorWasNoteTopic||retainedTerms.length&&priorQuestion?.role==="user")
+  &&context.dialogue.at(-1)?.role==="assistant"&&tasks?.length&&safety&&["none","clinical_history"].includes(safety.careContext)
+  &&safety.medicationIntent==="none"&&!safety.currentEvents?.length&&!safety.conditionalEvents?.length
+  &&!safety.eventAssessments?.some(event=>event.occurrence!=="historical")
+  &&safety.missingContext.every(key=>resolvedScopeFields.includes(key))
+  &&tasks.every(task=>(historyTaskKinds.includes(task.kind)||task.kind==="owner_observations")
+    &&task.missing.every(key=>resolvedScopeFields.includes(key)||key==="owner_observation"))){
+  const active=references.filter(ref=>ref.usedInPreviousAnswer);
+  if(active.length===1&&active[0].request.kind==="history"&&active[0].request.expectedSources?.length===1){
+   const {handle,request}=active[0];
+   if(named.every(pet=>pet.handle===request.pet.handle)&&context.selectedPet===request.pet.handle){
+    return {...first,text:"",calls:[{id:"owner-note-follow-up",name:"read_referenced_sources",arguments:JSON.stringify({reference:handle})}],
+     historyIntent:{requested:true,timeBasis:request.orderBy,pet:request.pet.handle},safety:{...safety,referent:"clear",missingContext:[]},
+     taskPlan:[{...tasks[0],kind:"saved_content",needsHistory:true,needsOwnerFacts:false,recordMode:"single",workflow:"none",
+      pets:[request.pet.handle],reference:handle,missing:[]}]};
+   }
+  }
+ }
+ const earlyArrival=firstVisit.test(question)&&!explicitCalendarScopes(question).length&&!explicitRequestedTimeBasis(question)
+  &&!/\b(?:and (?:how|what|when)|today|currently|now)\b/i.test(question);
+ const canCollapseArrival=earlyArrival&&tasks?.length&&tasks.every(task=>historyTaskKinds.includes(task.kind)&&!task.reference&&!task.needsOwnerFacts
+  &&task.pets.every(handle=>named.length===1&&handle===named[0].handle));
+ if(!tasks?.length||tasks.length!==1&&!canCollapseArrival||!historyTaskKinds.includes(tasks[0].kind)||tasks[0].needsOwnerFacts)return null;
  if(!safety||!["none","clinical_history"].includes(safety.careContext)||safety.medicationIntent!=="none"
   ||safety.currentEvents?.length||safety.conditionalEvents?.length
   ||safety.eventAssessments?.some(event=>event.occurrence!=="historical")
@@ -85,4 +148,24 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
   return recovered(named[0],calls);
  }
  return null;
+}
+
+// A positive topic lookup can be answered with one directly matching
+// sentence. This does not assert uniqueness across the journal or completeness.
+export function verifiedOwnerNoteTopic(terms,sources,minTerms=2){
+ if(!terms||terms.length<minTerms||terms.some(term=>term.length<4))return null;
+ const segmenter=new Intl.Segmenter("en",{granularity:"sentence"});
+ const matches=[];
+ for(const source of sources){
+  for(const {segment} of segmenter.segment(source.body)){
+   const excerpt=segment.trim();
+   if(!excerpt||excerpt.length>400)continue;
+   const words=new Set(excerpt.toLowerCase().match(/[\p{L}]+/gu)??[]);
+   if(terms.every(term=>["","s","es","ed","ing","ness"].some(suffix=>words.has(term+suffix)))){
+    matches.push({source,excerpt});
+    break;
+   }
+  }
+ }
+ return matches.length===1?matches[0]:null;
 }

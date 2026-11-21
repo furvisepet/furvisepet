@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {runReadOnlyAsk,requiresNamedLatestSavedNote} from "../app/lib/ask-read-only/core.mjs";
+import {calculateReadSources,presentBodyWeightComparison} from "../app/lib/ask-read-only/calculations.mjs";
+import {discoverHistoryBatch} from "../app/lib/ask-read-only/retrieval.mjs";
 import {buildReadOnlyPublication} from "../app/lib/ask-read-only/publication.ts";
 process.env.FURVISE_RATE_LIMIT_HASH_SECRET="test-only-pet-notes-owner-scope-hmac-2026";
 const ownerId="synthetic-owner", pet={id:"synthetic-pet",ownerId,name:"Furvise QA MG Synthetic Nonclinical 20261027",species:"dog"};
@@ -41,6 +43,7 @@ test("exact production QA prompt requires one named owner-scoped recorded-latest
  assert.equal(reads[0].pet.ownerId,ownerId);
  assert.equal(reads[0].kind,"history");
  assert.equal(reads[0].goal,"boundary");
+ assert.equal(reads[0].takeFirst,true);
  assert.equal(reads[0].orderBy,"recorded");
  assert.equal(reads[0].order,"desc");
  assert.deepEqual(reads[0].terms,[]);
@@ -120,4 +123,192 @@ test("a named event-date boundary resolves record choice without a particular no
   read:async req=>{reads.push(req);return {sources:[note],total:1,hasMore:false,scopeExhausted:true};}
  });
  assert.deepEqual(reads.map(r=>[r.pet.id,r.goal,r.orderBy,r.order]),[[cat.id,"boundary","event","desc"]]);
+});
+
+test("a first-row endpoint completes without treating older rows as omitted answer evidence",async()=>{
+ const calls=[];
+ const [result]=await discoverHistoryBatch([{pet,kind:"history",goal:"boundary",orderBy:"recorded",order:"desc",takeFirst:true,terms:["appetite"]}],async(_request,page)=>{
+  calls.push(page);return {sources:[note],total:120,hasMore:true};
+ });
+ assert.equal(calls.length,1);
+ assert.equal(calls[0].limit,1);
+ assert.deepEqual(calls[0].terms,["appetite"]);
+ assert.equal(result.scopeExhausted,true);
+ assert.equal(result.hasMore,false);
+ assert.equal(result.total,null);
+});
+test("an empty topic endpoint never substitutes an unrelated row",async()=>{
+ const calls=[];
+ const [result]=await discoverHistoryBatch([{pet,kind:"history",goal:"boundary",orderBy:"recorded",order:"desc",takeFirst:true,terms:["grooming"]}],async(_request,page)=>{
+  calls.push(page);return {sources:[],total:0,hasMore:false};
+ });
+ assert.equal(calls.length,1);
+ assert.deepEqual(result.sources,[]);
+ assert.equal(result.searchRelaxed,false);
+});
+
+test("a latest weigh-in skips a newer appointment without an actual weight",async()=>{
+ const cat={...pet,name:"Piper"};
+ const actual={...note,body:"Piper weighed 5.1 kg at the checkup."};
+ const appointment={...note,id:"synthetic-note-2",body:"Scheduled a weigh-in for next week.",
+  eventAt:"2026-11-03T08:19:00Z",recordedAt:"2026-11-03T10:10:00Z"};
+ await runReadOnlyAsk(input("When was her last weigh-in and what was the weight?",{pets:[cat]}),{
+  provider:async(request,phase)=>{
+   if(phase==="read_selection")return {calls:[],text:"",taskPlan:[plan()]};
+   assert.deepEqual(request.SOURCE_CATALOG.map(row=>row.body),[actual.body]);
+   assert.equal(request.TOOL_DATA[0].hasMore,false);
+   return completed(true);
+  },
+  read:async req=>{
+   assert.equal(req.latestBodyWeight,true);
+   assert.equal(req.orderBy,"event");
+   return {sources:[appointment,actual],total:100,hasMore:true,scopeExhausted:false};
+  }
+ });
+});
+
+test("a two-reading comparison leads with its verified change and renders each date once",()=>{
+ const rows=[
+  {...note,handle:"s1",petName:"Piper",body:"Piper weighed 5.1 kg at the checkup."},
+  {...note,handle:"s2",id:"synthetic-later",petName:"Piper",body:"Piper weighed 5.4 kg.",
+   eventAt:"2026-11-14T18:00:00Z",recordedAt:"2026-11-15T01:11:00Z"}
+ ];
+ const calculations=calculateReadSources([{operation:"difference",operands:["s1:m1","s2:m1"]}],rows);
+ const answer={replyType:"answer",calculations,taskCompletion:[{status:"complete"}]};
+ const text=presentBodyWeightComparison("Has Piper's weight changed between the two visits?",answer,"UTC");
+ assert.match(text,/increased by 0.3 kg/);
+ assert.match(text,/October 31, 2026 and 5.4 kg on November 14, 2026/);
+ assert.equal(presentBodyWeightComparison("Why has Piper's weight changed between the two visits?",answer,"UTC"),null);
+});
+
+test("a simple latest-note reply uses the verified row without a generated source handle",async()=>{
+ const cat={...pet,name:"Piper"};
+ const result=await runReadOnlyAsk(input("What's the most recent thing I wrote down about Piper?",{pets:[cat]}),{
+  provider:async(_request,phase)=>{assert.equal(phase,"read_selection");return {calls:[],text:"",taskPlan:[plan()]};},
+  read:async()=>({sources:[note],total:null,hasMore:false,scopeExhausted:true})
+ });
+ assert.equal(result.providerCallCount,1);
+ assert.match(result.answer.answer,/regular food and restful sleep/);
+ assert.equal(result.answer.taskCompletion[0].status,"complete");
+});
+
+test("start and end of a single year read the first and last recorded weights",async()=>{
+ const cat={...pet,name:"Piper"};
+ const notes=[
+  {...note,body:"Piper weighed 5.1 kg.",eventAt:"2026-01-10T12:00:00Z"},
+  {...note,id:"later-note",body:"Piper weighed 5.4 kg.",eventAt:"2026-12-14T12:00:00Z"}
+ ];
+ const requests=[];
+ const result=await runReadOnlyAsk(input("How much did Piper weigh at the start and end of 2026?",{pets:[cat]}),{
+  provider:async(_request,phase)=>{
+   assert.equal(phase,"read_selection");
+   return {calls:[],text:"Which year?",taskPlan:[plan({kind:"clarification",missing:["year","pet"]})],
+    safety:{careContext:"none",medicationIntent:"none",referent:"essential_unknown",missingContext:["date","pet"],eventAssessments:[]}};
+  },
+  read:async request=>{
+   requests.push(request);
+   return {sources:[notes[request.order==="asc"?0:1]],total:null,hasMore:false,scopeExhausted:true};
+  }
+ });
+ assert.deepEqual(requests.map(request=>[request.from,request.to,request.order]),[
+  ["2026-01-01","2026-12-31","asc"],["2026-01-01","2026-12-31","desc"]
+ ]);
+ assert.match(result.answer.answer,/5.1 kg on January 10, 2026 and 5.4 kg on December 14, 2026/);
+ assert.equal(result.answer.replyType,"answer");
+});
+
+test("a directly verified journal topic can be answered with a partial discovery window",async()=>{
+ const cat={...pet,name:"Piper"};
+ const match={...note,body:"Piper was restless after thunderstorms. Activity later returned to usual."};
+ const unrelated={...note,id:"other-note",body:"Restless before breakfast."};
+ const result=await runReadOnlyAsk(input("What did I write about Piper getting restless after thunderstorms?",{pets:[cat]}),{
+  provider:async(_request,phase)=>{
+   assert.equal(phase,"read_selection");
+   return {calls:[],text:"Which saved result?",taskPlan:[plan({kind:"clarification"}),plan({id:"t2",kind:"general_guidance"})],
+    safety:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]}};
+  },
+  read:async request=>{
+   assert.deepEqual(request.terms,["restless","thunderstorms"]);
+   return {sources:[unrelated,match],total:120,inspected:2,hasMore:true,scopeExhausted:false};
+  }
+ });
+ assert.match(result.answer.answer,/Piper was restless after thunderstorms\./);
+ assert.equal(result.answer.replyType,"answer");
+ assert.equal(result.providerCallCount,1);
+ assert.equal(result.answer.taskCompletion[0].status,"complete");
+ assert.deepEqual(result.sources.map(row=>row.id),[match.id]);
+ assert.equal(result.coverage[0].hasMore,true);
+ const {response,limited}=buildReadOnlyPublication(result,ownerId,"Piper");
+ assert.equal(limited,false);
+ assert.ok(!response.sections.some(section=>section.heading==="What I checked"));
+});
+
+test("a named current profile food answer cannot leak a provider-generated source identifier",async()=>{
+ const cat={...pet,name:"Piper"};
+ const row={...note,kind:"profile",body:JSON.stringify({current_food:"Lamb adult wet food"})};
+ const result=await runReadOnlyAsk(input("What food do I have listed for Piper right now?",{pets:[cat]}),{
+  provider:async(_request,phase)=>{
+   assert.equal(phase,"read_selection");
+   return {calls:[],text:"",taskPlan:[plan({kind:"clarification",pets:["p1"]})],
+     safety:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]}};
+  },
+  read:async request=>{
+   assert.equal(request.kind,"profile");
+   return {sources:[row],total:1,hasMore:false,scopeExhausted:true};
+  }
+ });
+ assert.equal(result.answer.answer,"Piper’s listed food is Lamb adult wet food.");
+});
+
+test("explicit historical weight change uses one verified endpoint per requested period",async()=>{
+ const cat={...pet,name:"Piper"};
+ const notes=[
+  {...note,body:"Piper weighed 5.1 kg.",eventAt:"2025-02-15T12:00:00Z"},
+  {...note,id:"later-note",body:"Piper weighed 5.4 kg.",eventAt:"2026-01-10T12:00:00Z"}
+ ];
+ const requests=[];
+ const result=await runReadOnlyAsk(input("Has Piper's weight changed between the February 2025 note and January 2026 check?",{pets:[cat]}),{
+  provider:async(_request,phase)=>{
+   assert.equal(phase,"read_selection");
+   return {calls:[],text:"Which record?",taskPlan:[plan({kind:"calculation",missing:["which_record"]})],
+    safety:{careContext:"none",medicationIntent:"none",referent:"essential_unknown",missingContext:["date"],eventAssessments:[]}};
+  },
+  read:async request=>{
+   requests.push(request);
+   return {sources:[notes[request.from.startsWith("2025")?0:1]],total:1,hasMore:false,scopeExhausted:true};
+  }
+ });
+ assert.deepEqual(requests.map(request=>[request.from,request.to]),[
+  ["2025-02-01","2025-02-28"],["2026-01-01","2026-01-31"]
+ ]);
+ assert.match(result.answer.answer,/increased by 0.3 kg/);
+ assert.match(result.answer.answer,/5.1 kg on February 15, 2025 and 5.4 kg on January 10, 2026/);
+ assert.equal(result.answer.replyType,"answer");
+});
+
+test("a new dated reading follows the last verified weight without reusing its date",async()=>{
+ const cat={...pet,name:"Piper"};
+ const september={...note,body:"Piper weighed 5.1 kg.",eventAt:"2025-09-10T12:00:00Z"};
+ const october={...note,id:"october-note",body:"Piper weighed 5.4 kg.",eventAt:"2025-10-10T12:00:00Z"};
+ const previousQuestion="How much did Piper weigh at the September 2025 checkup?";
+ const prev=await runReadOnlyAsk(input(previousQuestion,{pets:[cat]}),{
+   provider:async(_request,phase)=>phase==="read_selection"
+    ?{calls:[],text:"",taskPlan:[plan({pets:["p1"]})],safety:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]}}
+    :({...completed(true),appHelp:{intent:"none",pet:null},clinicalReview:{assessment:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]},ownerStatementRefs:[],observationFields:[]}}),
+   read:async()=>({sources:[september],total:1,hasMore:false,scopeExhausted:true})
+ });
+ const result=await runReadOnlyAsk(input("What was the October 2025 reading?",{pets:[cat],readReferences:prev.readReferences,
+   dialogue:[{role:"user",text:previousQuestion},{role:"assistant",text:prev.answer.answer}]}),{
+   provider:async(_request,phase)=>{
+    assert.equal(phase,"read_selection");
+    return {calls:[],text:"",taskPlan:[plan({kind:"clarification"})],
+     safety:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]}};
+   },
+   read:async request=>{
+    assert.equal(request.from,"2025-10-01");
+    assert.equal(request.to,"2025-10-31");
+    return {sources:[october],total:1,hasMore:false,scopeExhausted:true};
+   }
+ });
+ assert.match(result.answer.answer,/Piper weighed 5.4 kg on October 10, 2025/);
 });

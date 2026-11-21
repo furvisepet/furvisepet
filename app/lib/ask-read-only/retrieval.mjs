@@ -14,7 +14,7 @@ const compare=request=>(a,b)=>{
 function createState(request){
  const terms=request.goal==="complete_set"?[]:[...new Set(request.terms??[])].sort();
  const lane=(mode,terms,excludeTerms=[])=>({mode,terms,excludeTerms,offset:request.offset??0,total:null,inspected:0,pages:0,attempts:0,reusedPages:0,rawRows:0,duplicateRows:0,sharedCandidates:0,exhausted:false,seen:new Map(),sources:[]});
- return {request,lanes:terms.length?[lane("lexical",terms),lane("complementary",[],terms)]:[lane("scoped",[])],cursor:0,seen:new Map(),unavailable:false};
+ return {request,lanes:request.takeFirst?[lane(terms.length?"lexical":"scoped",terms)]:terms.length?[lane("lexical",terms),lane("complementary",[],terms)]:[lane("scoped",[])],cursor:0,seen:new Map(),unavailable:false};
 }
 function resultOf(state,batchAcquisition){
  const {request,lanes}=state,groups=lanes.map(lane=>lane.sources),sources=[];
@@ -22,8 +22,8 @@ function resultOf(state,batchAcquisition){
  if(["complete_set","boundary","comparison"].includes(request.goal))sources.sort(compare(request));
  else if(request.terms?.length){const rank=row=>request.terms.filter(term=>row.body.toLocaleLowerCase().includes(term.toLocaleLowerCase())).length;sources.sort((a,b)=>rank(b)-rank(a));}
  const lexical=lanes.find(lane=>lane.mode==="lexical");
- return {sources,total:lanes.every(lane=>Number.isSafeInteger(lane.total))?lanes.reduce((sum,lane)=>sum+lane.total,0):null,
-  matchedTotal:lexical?.total??null,hasMore:lanes.some(lane=>!lane.exhausted),searchRelaxed:lexical?.total===0,
+ return {sources,total:!request.takeFirst&&lanes.every(lane=>Number.isSafeInteger(lane.total))?lanes.reduce((sum,lane)=>sum+lane.total,0):null,
+  matchedTotal:lexical?.total??null,hasMore:lanes.some(lane=>!lane.exhausted),searchRelaxed:!request.takeFirst&&lexical?.total===0,
   discovery:lanes.map(({mode,offset,total,inspected,pages,attempts,reusedPages,rawRows,duplicateRows,sharedCandidates,exhausted})=>({mode,offset,total,inspected,pages,attempts,reusedPages,rawRows,duplicateRows,sharedCandidates,exhausted})),
   inspected:state.seen.size,scopeExhausted:lanes.every(lane=>lane.exhausted)&&!(request.offset>0)&&!state.unavailable,
   unavailable:state.unavailable,semanticRecallVerified:false,batchAcquisition};
@@ -40,7 +40,7 @@ export async function discoverHistoryBatch(requests,fetchPage,limits={}){
  // Same collection + order + offset can share a union discovery stream before any DB IO.
  // Opposite orders/axes remain separate until a complete lane can be reused:
  // a bounded prefix cannot establish another goal's opposite endpoint.
- const collectionKey=request=>scopeKey(request)+JSON.stringify([request.offset??0,request.orderBy??"event",request.order??"desc"]);
+ const collectionKey=request=>scopeKey(request)+JSON.stringify([request.offset??0,request.orderBy??"event",request.order??"desc",!!request.takeFirst]);
  const collections=new Map();
  for(const request of requests){const key=collectionKey(request);collections.set(key,[...(collections.get(key)??[]),request]);}
  for(const request of requests){
@@ -68,7 +68,8 @@ export async function discoverHistoryBatch(requests,fetchPage,limits={}){
    const key=scopeKey(state.request)+JSON.stringify([lane.terms,lane.excludeTerms]);
    const cached=completeLanes.get(key);
    const waiting=states.filter(other=>!other.unavailable&&other.lanes.some(l=>!l.exhausted)).length;
-   const limit=cached?HISTORY_PAGE_SIZE:Math.min(HISTORY_PAGE_SIZE,(maxRows>rawRows?Math.max(1,Math.floor((maxRows-rawRows)/Math.max(1,waiting))):0));
+   const pageSize=state.request.takeFirst?1:HISTORY_PAGE_SIZE;
+   const limit=cached?pageSize:Math.min(pageSize,(maxRows>rawRows?Math.max(1,Math.floor((maxRows-rawRows)/Math.max(1,waiting))):0));
    if(!cached&&(attempts>=maxPages||limit<1))continue;
    let result;
    try{
@@ -94,7 +95,7 @@ export async function discoverHistoryBatch(requests,fetchPage,limits={}){
      if(!state.seen.has(id)){state.seen.set(id,source);lane.sources.push(source);}
     }
     lane.inspected=lane.seen.size;lane.total=Number.isSafeInteger(result.total)&&result.total>=0?result.total:null;
-    lane.exhausted=!result.hasMore;lane.offset+=result.sources.length;
+    lane.exhausted=!result.hasMore||state.request.takeFirst&&result.sources.length===1;lane.offset+=result.sources.length;
     if(!result.sources.length&&result.hasMore){state.unavailable=true;lane.exhausted=false;}
     if(lane.exhausted&&!(state.request.offset>0)&&lane.total===lane.seen.size)completeLanes.set(key,[...lane.seen.values()]);
     progressed=true;

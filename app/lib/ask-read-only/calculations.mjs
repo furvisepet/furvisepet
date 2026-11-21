@@ -100,9 +100,45 @@ export function calculateReadSources(calculations,sources) {
   const displayResult=calculation.operation==="percent_change"&&Math.abs(result)>=0.01
    ?String(Number(result.toFixed(2))):format(result);
   const metric=metrics[0].replaceAll("_"," ");
-  const provenance=values.map(value=>new Date(value.time).toISOString()+": "+format(value.value)+" "+unit).join(" → ");
+  const provenance=values.map(value=>new Date(value.time).toISOString().slice(0,10)+": "+format(value.value)+" "+unit).join(" → ");
   const petLabels=[...new Set(values.map(v=>v.petName).filter(Boolean))].join(" / ");
   return {text:(petLabels?petLabels+"  -  ":"")+metric+"  -  "+label+": "+(["difference","percent_change"].includes(calculation.operation)&&result>0?"+":"")+displayResult+(calculation.operation==="percent_change"?"%":" "+unit)+" ("+timeBasis+" dates; "+provenance+")",
-   metric:metrics[0],timeBasis,operandCount:values.length,sourceHandles:values.map(value=>value.source),value:Number(format(result)),unit:calculation.operation==="percent_change"?"%":unit};
+   metric:metrics[0],operation:calculation.operation,timeBasis,operandCount:values.length,
+   endpoints:values.map(({petId,petName,time,value,source})=>({petId,petName,time,value,source})),
+   sourceHandles:values.map(value=>value.source),value:Number(format(result)),unit:calculation.operation==="percent_change"?"%":unit};
  });
+}
+
+/** Present a verified two-endpoint body-weight comparison without repeating its
+ * operands or changing the exact numeric result kept with the source proof. */
+export function presentBodyWeightComparison(question,answer,timeZone,sources=[]){
+ const asksChange=/\b(?:weight changed|change in weight|weight difference|difference in weight)\b/i.test(question);
+ const asksValues=/^\s*how much did\b[^?]{0,80}\bweigh\b/i.test(question)
+  &&/\b(?:start and end|beginning and end|between|versus|vs)\b/i.test(question);
+ if((!asksChange&&!asksValues)||answer.replyType!=="answer"
+  ||answer.taskCompletion?.some(task=>task.status!=="complete")
+  ||/\b(?:why|what caused|why did|should|medication|is it safe)\b/i.test(question))return null;
+ let calculations=answer.calculations??[];
+ if(asksValues&&!calculations.length){
+  const selected=sources.filter(source=>source.kind==="history"&&answer.sources.includes(source.handle));
+  const weights=selected.map(source=>(source.measurements??[]).filter(value=>value.metric==="body_weight"));
+  if(selected.length!==2||weights.some(items=>items.length!==1))return null;
+  calculations=calculateReadSources([{operation:"difference",operands:weights.map(items=>items[0].handle)}],selected);
+ }
+ const change=calculations.find(calc=>calc.operation==="difference");
+ if(!change||change.metric!=="body_weight"||change.available===false||change.endpoints?.length!==2
+  ||!Number.isFinite(change.value))return null;
+ const [first,last]=change.endpoints;
+ if(!first.petName||first.petId!==last.petId||first.source===last.source
+  ||calculations.some(calc=>!["difference","percent_change"].includes(calc.operation)
+   ||calc.sourceHandles.join()!==change.sourceHandles.join()||calc.timeBasis!==change.timeBasis))return null;
+ const date=new Intl.DateTimeFormat("en-US",{timeZone,year:"numeric",month:"long",day:"numeric"});
+ const weight=value=>String(Number(value.toPrecision(12)))+" "+change.unit;
+ const day=endpoint=>date.format(new Date(endpoint.time));
+ const endpoints=first.petName+" weighed "+weight(first.value)+" on "+day(first)+" and "+weight(last.value)+" on "+day(last)+".";
+ if(!asksChange)return endpoints;
+ const amount=weight(Math.abs(change.value));
+ const movement=change.value===0?"The recorded weight stayed the same."
+  :"The recorded weight "+(change.value>0?"increased":"decreased")+" by "+amount+".";
+ return movement+" "+endpoints;
 }
