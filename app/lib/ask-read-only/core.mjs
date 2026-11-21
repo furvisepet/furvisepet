@@ -6,7 +6,7 @@ import { explicitCalendarScopes, explicitRequestedTimeBasis, recoverBoundedCalen
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { recoverOwnerHistoryIntent, historyOnlyInferenceQuestion } from "./owner-history-intent.mjs";
-import { calculateReadSources, readSourceMeasurements } from "./calculations.mjs";
+import { calculateReadSources, presentBodyWeightComparison, readSourceMeasurements } from "./calculations.mjs";
 /**
  * Read-only Ask capability protocol. No canonical intent planner and no mutations.
  * Dependencies are injected so the exact orchestration is exercised without paid calls.
@@ -70,7 +70,8 @@ export function requiresNamedLatestSavedNote(question,selectedPet,pets=[]) {
   return false;
  };
  return mentions(selectedPet)&&!pets.some(p=>p.id!==selectedPet.id&&mentions(p))
-  &&!(/\b(?:about|on|for)\s+[^.!?]+?[’\x27]s\s+\w+/i.test(question));
+  &&[...question.matchAll(/\b(?:latest|most recent|newest|last)\b[^.!?]{0,100}\b(?:about|regarding|for|on)\s+([^.!?]+)(?:[.!?]|$)/gi)]
+   .every(match=>match[1].trim().toLocaleLowerCase()===token);
 }
 export const READ_ONLY_LIMITS = Object.freeze({ providerCalls: 2, tools: 4, records: 32, page: 16, sourceCharacters: 24000, dialogueCharacters: 8000 });
 const nullableDate = { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", description: "YYYY-MM-DD in the user's calendar, or null. Ask about an ambiguous year rather than guessing." };
@@ -544,6 +545,12 @@ export async function runReadOnlyAsk(input,deps) {
    deps.onAnswerBoundary?.({outcome:"clinical_reviewed",...reviewed.summary});
   }
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results,context.explicitCalendarScopes,context.question);
+  const comparison=!reviewed.policy?.active&&presentBodyWeightComparison(context.question,answer,input.timeZone);
+  if(comparison){
+   answer={...answer,answer:comparison,verifiedSourceText:undefined,calculationPresented:true,
+    presentation:{...answer.presentation,sourceDates:[]}};
+   for(const result of results)if(!result.unmet.length&&result.sources.some(source=>answer.sources.includes(source.source)))result.searchRelaxed=false;
+  }
   const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow,input.question);
   if(reviewed.workflow?.intent!=="none"&&reviewed.workflow)deps.onAnswerBoundary?.({outcome:"workflow_selected",firstIntent:first.workflowIntent??"none",finalIntent:reviewed.workflow.intent,appended:appendWorkflow,readCount:bound.length});

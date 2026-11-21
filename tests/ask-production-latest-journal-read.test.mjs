@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {runReadOnlyAsk,requiresNamedLatestSavedNote} from "../app/lib/ask-read-only/core.mjs";
+import {calculateReadSources,presentBodyWeightComparison} from "../app/lib/ask-read-only/calculations.mjs";
 import {discoverHistoryBatch} from "../app/lib/ask-read-only/retrieval.mjs";
 import {buildReadOnlyPublication} from "../app/lib/ask-read-only/publication.ts";
 process.env.FURVISE_RATE_LIMIT_HASH_SECRET="test-only-pet-notes-owner-scope-hmac-2026";
@@ -164,4 +165,18 @@ test("a latest weigh-in skips a newer appointment without an actual weight",asyn
    return {sources:[appointment,actual],total:100,hasMore:true,scopeExhausted:false};
   }
  });
+});
+
+test("a two-reading comparison leads with its verified change and renders each date once",()=>{
+ const rows=[
+  {...note,handle:"s1",petName:"Piper",body:"Piper weighed 5.1 kg at the checkup."},
+  {...note,handle:"s2",id:"synthetic-later",petName:"Piper",body:"Piper weighed 5.4 kg.",
+   eventAt:"2026-11-14T18:00:00Z",recordedAt:"2026-11-15T01:11:00Z"}
+ ];
+ const calculations=calculateReadSources([{operation:"difference",operands:["s1:m1","s2:m1"]}],rows);
+ const answer={replyType:"answer",calculations,taskCompletion:[{status:"complete"}]};
+ const text=presentBodyWeightComparison("Has Piper's weight changed between the two visits?",answer,"UTC");
+ assert.match(text,/increased by 0.3 kg/);
+ assert.match(text,/October 31, 2026 and 5.4 kg on November 14, 2026/);
+ assert.equal(presentBodyWeightComparison("Why has Piper's weight changed between the two visits?",answer,"UTC"),null);
 });
