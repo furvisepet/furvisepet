@@ -39,7 +39,11 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
    taskPlan:[{...tasks[0],kind:"saved_content",needsHistory:true,recordMode:"single",workflow:"none",
     pets:[pet.handle],reference:null,includeSourceDates:false,missing:[]}]};
  }
- if(tasks?.length!==1||!historyTaskKinds.includes(tasks[0].kind)||tasks[0].needsOwnerFacts)return null;
+ const earlyArrival=firstVisit.test(question)&&!explicitCalendarScopes(question).length&&!explicitRequestedTimeBasis(question)
+  &&!/\b(?:and (?:how|what|when)|today|currently|now)\b/i.test(question);
+ const canCollapseArrival=earlyArrival&&tasks?.length&&tasks.every(task=>historyTaskKinds.includes(task.kind)&&!task.reference&&!task.needsOwnerFacts
+  &&task.pets.every(handle=>named.length===1&&handle===named[0].handle));
+ if(!tasks?.length||tasks.length!==1&&!canCollapseArrival||!historyTaskKinds.includes(tasks[0].kind)||tasks[0].needsOwnerFacts)return null;
  if(!safety||!["none","clinical_history"].includes(safety.careContext)||safety.medicationIntent!=="none"
   ||safety.currentEvents?.length||safety.conditionalEvents?.length
   ||safety.eventAssessments?.some(event=>event.occurrence!=="historical")

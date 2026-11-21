@@ -71,7 +71,7 @@ export function requiresNamedLatestSavedNote(question,selectedPet,pets=[]) {
  };
  return mentions(selectedPet)&&!pets.some(p=>p.id!==selectedPet.id&&mentions(p))
   &&[...question.matchAll(/\b(?:latest|most recent|newest|last)\b[^.!?]{0,100}\b(?:about|regarding|for|on)\s+([^.!?]+)(?:[.!?]|$)/gi)]
-   .every(match=>match[1].trim().toLocaleLowerCase()===token);
+   .every(match=>match[1].trim().toLocaleLowerCase()===name.toLocaleLowerCase());
 }
 export const READ_ONLY_LIMITS = Object.freeze({ providerCalls: 2, tools: 4, records: 32, page: 16, sourceCharacters: 24000, dialogueCharacters: 8000 });
 const nullableDate = { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", description: "YYYY-MM-DD in the user's calendar, or null. Ask about an ambiguous year rather than guessing." };
@@ -315,6 +315,7 @@ export async function runReadOnlyAsk(input,deps) {
  const requestedSubjects=latestTopic||needsWeighIn?namedPetsForHistory(input.question,pets):[];
  const weighInPet=needsWeighIn?(requestedSubjects.length===1?requestedSubjects[0]
   :!requestedSubjects.length&&!input.dialogue.length?pets.find(p=>p.id===input.selectedPetId):null):null;
+ const oneLatestQuestion=/^[^.!?]+\??$/.test(input.question.trim())&&!/\b(?:and|or|then)\b/i.test(input.question);
  const latestNamedNotePet=weighInPet??(requestedSubjects.length===1?requestedSubjects[0]
   :pets.find(p=>p.id===input.selectedPetId&&requiresNamedLatestSavedNote(input.question,p,pets))??null);
  const recentDialogue=input.dialogue.slice(-12);
@@ -363,7 +364,11 @@ export async function runReadOnlyAsk(input,deps) {
  const emergency=assessment?.currentEvents?.length>0||assessment?.scenario==="current"&&assessment.urgency==="immediate";
  // A standalone question about what older records can establish is about
  // evidence limits. It does not need retrieval or a personalized care answer.
- if(!emergency&&assessment?.medicationIntent==="none"&&historyOnlyInferenceQuestion(context.question)){
+ const priorHistorical=references.filter(ref=>ref.usedInPreviousAnswer&&ref.request.kind==="history"&&ref.request.pet.handle===context.selectedPet);
+ const askAboutNow=priorHistorical.length===1&&/^\s*(?:does|can) (?:that|it|this) (?:tell|show|confirm|prove)\b[^.!?]{1,120}\b(?:today|now|currently)\s*\??$/i.test(context.question)
+  &&!/\b(?:and|or|should|treatment|dose|diagnose)\b/i.test(context.question)
+  &&namedPetsForHistory(context.question,pets).every(pet=>pet.handle===context.selectedPet);
+ if(!emergency&&assessment?.medicationIntent==="none"&&(historyOnlyInferenceQuestion(context.question)||askAboutNow)){
   const answer=validateReadOnlyAnswer({components:[{kind:"general",text:"The older notes can tell you what was observed at the time. They can’t tell you whether it’s still happening today.",sources:[]}],
    sources:[],quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}},[],context.question);
   return sealReadOnlyResult({answer,readReferences:carryReadReferences(references,[],[],answer,input.timeZone),
@@ -394,7 +399,7 @@ export async function runReadOnlyAsk(input,deps) {
   }
   if(latestNamedNotePet&&!emergency&&(!assessment||assessment.careContext==="none"&&assessment.medicationIntent==="none"
     &&!assessment.currentEvents?.length&&!assessment.conditionalEvents?.length&&!assessment.eventAssessments?.length)
-    &&taskPlan?.length===1&&["saved_content","clarification","general_guidance"].includes(taskPlan[0].kind)&&!taskPlan[0].reference&&!taskPlan[0].needsOwnerFacts
+    &&taskPlan?.length&&(taskPlan.length===1||oneLatestQuestion)&&taskPlan.every(task=>["saved_content","clarification","general_guidance"].includes(task.kind)&&!task.reference&&!task.needsOwnerFacts)
     &&!candidates.some(c=>c.request.kind==="history"&&(c.request.from||c.request.to||c.request.recordedFrom||c.request.recordedTo||c.reference))){
    // Restore a missing or overconstrained first-pass read for the explicit
    // latest saved note. Model-selected text/date searches cannot prove latest.
@@ -413,8 +418,8 @@ export async function runReadOnlyAsk(input,deps) {
     candidates=[{id:"latest-owned-note",name:"search_saved_records",reference:null,
      request:{...bindReadTool("search_saved_records",args,pets,references),...boundary},ownerContext:true}];
    }
-   taskPlan=taskPlan.map(t=>({...t,kind:"saved_content",needsHistory:true,recordMode:"single",workflow:"none",pets:[latestNamedNotePet.handle],
-    missing:t.missing.filter(k=>!["pet","year","date_meaning","which_record"].includes(k))}));
+   taskPlan=[{...taskPlan[0],kind:"saved_content",needsHistory:true,recordMode:"single",workflow:"none",pets:[latestNamedNotePet.handle],
+    missing:taskPlan[0].missing.filter(k=>!["pet","year","date_meaning","which_record"].includes(k))}];
    if(assessment) first={...first,text:"",safety:{...first.safety,referent:"clear",
     missingContext:first.safety.missingContext.filter(k=>!["pet","year","date","date_meaning","which_record"].includes(k))}};
    if(assessment) assessment=validateClinicalAssessment(first.safety);
@@ -510,6 +515,42 @@ export async function runReadOnlyAsk(input,deps) {
    semanticRecallVerified:false,sourceMeaning:request.kind==="profile"?"current_profile_snapshot":"historical_saved_report",
    status:unmet.length?"partial":"candidate_evidence",unmet});
  }
+ const preserveReferences=answer=>carryReadReferences(references,bound.map((call,index)=>({...call,
+  sourceHandles:allocation.visible[index].map(source=>source.handle),omittedEventRange:results[index].omittedEventRange,
+  omittedRange:results[index].omittedRange,queryScopeExhausted:results[index].queryScopeExhausted,
+  continuationValidated:results[index].continuationValidation?.valid===true})),sources,answer,input.timeZone);
+ const profileLookup=bound.length===1&&bound[0].request.kind==="profile"&&taskPlan?.length===1&&taskPlan[0].kind==="saved_content"
+  &&!taskPlan[0].missing.length&&!taskPlan[0].reference&&oneLatestQuestion;
+ const plainLatest=oneLatestQuestion&&!latestTopic&&bound.length===1&&bound[0].request.takeFirst;
+ if(!emergency&&(!assessment||assessment.careContext==="none"&&assessment.medicationIntent==="none")
+  &&results.length===1&&!results[0].unmet.length&&sources.length===1&&(plainLatest||profileLookup)){
+  const source=sources[0];
+  let fact,quote;
+  if(plainLatest&&source.body.trim()&&source.body.length<=1500){
+   const instant=bound[0].request.orderBy==="event"?source.eventAt:source.recordedAt;
+   const date=new Intl.DateTimeFormat("en-US",{timeZone:input.timeZone,year:"numeric",month:"long",day:"numeric"}).format(new Date(instant));
+   quote=source.body;
+   fact=source.petName+"’s most recent note ("+date+") says: “"+quote+"”";
+  }else if(profileLookup){
+   let profile;
+   try{profile=JSON.parse(source.body);}catch{profile=null;}
+   const q=context.question;
+   if(/\b(?:how old|age)\b/i.test(q)&&!/\b(?:breed|weight|diet|food|species|sex|in human years)\b/i.test(q)
+     &&Number.isFinite(profile?.age_value)&&typeof profile.age_unit==="string")
+    fact=source.petName+" is listed as "+profile.age_value+" "+profile.age_unit.replace(/s$/,"")+(profile.age_value===1?"":"s")+" old.";
+   if(/\b(?:breed|what kind of (?:cat|dog|rabbit|bird))\b/i.test(q)
+     &&!/\b(?:age|weight|diet|food|species|sex|how old|why)\b/i.test(q)&&typeof profile?.breed==="string"&&profile.breed.trim())
+    fact=source.petName+"’s breed is "+profile.breed+".";
+  }
+  if(fact){
+   const answer=validateReadOnlyAnswer({components:[{kind:"saved",text:fact,sources:[source.handle]}],sources:[source.handle],
+    quotes:quote?[source.handle]:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}},sources,context.question);
+   if(quote)answer.verifiedSourceText=quote;
+   if(taskPlan?.length)answer.taskCompletion=taskPlan.map(task=>({id:task.id,kind:task.kind,status:"complete",reason:"none",sourceCount:1}));
+   return sealReadOnlyResult({answer,readReferences:preserveReferences(answer),sources,providerCallCount:calls,dialogueCoverage,
+    coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length})),requestedPetContext:false,queryShape:plainLatest?"latest_saved_note":"other"});
+  }
+ }
  const discovery=resolveRecordDiscovery(taskPlan,bound,results);
  if(discovery.resolved){taskPlan=discovery.plan;first.taskPlan=taskPlan;context.taskPlan=taskPlan;deps.onAnswerBoundary?.({outcome:"record_ambiguity_resolved",taskCount:discovery.resolved,method:"unique_fully_inspected_bounded_candidate"});}
  const catalog=sources.map(source=>({source:source.handle,kind:source.kind,pet:source.petName,body:source.body,eventAt:source.eventAt,recordedAt:source.recordedAt,measurements:source.measurements}));
@@ -545,7 +586,7 @@ export async function runReadOnlyAsk(input,deps) {
    deps.onAnswerBoundary?.({outcome:"clinical_reviewed",...reviewed.summary});
   }
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results,context.explicitCalendarScopes,context.question);
-  const comparison=!reviewed.policy?.active&&presentBodyWeightComparison(context.question,answer,input.timeZone);
+  const comparison=!reviewed.policy?.active&&presentBodyWeightComparison(context.question,answer,input.timeZone,sources);
   if(comparison){
    answer={...answer,answer:comparison,verifiedSourceText:undefined,calculationPresented:true,
     presentation:{...answer.presentation,sourceDates:[]}};
@@ -598,7 +639,7 @@ export async function runReadOnlyAsk(input,deps) {
   }
  }
  answer.limited=answer.limited||results.some(result=>result.hasMore||result.hasPrevious||result.truncated||result.unmet.length>0)||(bound.length>0&&(sources.length===0||answer.sources.length===0));
- const readReferences=carryReadReferences(references,bound.map((call,index)=>({...call,sourceHandles:allocation.visible[index].map(source=>source.handle),omittedEventRange:results[index].omittedEventRange,omittedRange:results[index].omittedRange,queryScopeExhausted:results[index].queryScopeExhausted,continuationValidated:results[index].continuationValidation?.valid===true})),sources,answer,input.timeZone);
+ const readReferences=preserveReferences(answer);
   const result={answer,readReferences,sources:sources.filter(s=>answer.sources.includes(s.handle)),providerCallCount:calls,dialogueCoverage,coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length})),
    requestedPetContext:selectedPetContextRequired,queryShape:/\b(?:latest|most recent)\b.{0,45}\b(?:journal|note|record)\b/i.test(input.question)?"latest_saved_note":"other"};
  return sealReadOnlyResult(result);

@@ -180,3 +180,14 @@ test("a two-reading comparison leads with its verified change and renders each d
  assert.match(text,/October 31, 2026 and 5.4 kg on November 14, 2026/);
  assert.equal(presentBodyWeightComparison("Why has Piper's weight changed between the two visits?",answer,"UTC"),null);
 });
+
+test("a simple latest-note reply uses the verified row without a generated source handle",async()=>{
+ const cat={...pet,name:"Piper"};
+ const result=await runReadOnlyAsk(input("What's the most recent thing I wrote down about Piper?",{pets:[cat]}),{
+  provider:async(_request,phase)=>{assert.equal(phase,"read_selection");return {calls:[],text:"",taskPlan:[plan()]};},
+  read:async()=>({sources:[note],total:null,hasMore:false,scopeExhausted:true})
+ });
+ assert.equal(result.providerCallCount,1);
+ assert.match(result.answer.answer,/regular food and restful sleep/);
+ assert.equal(result.answer.taskCompletion[0].status,"complete");
+});

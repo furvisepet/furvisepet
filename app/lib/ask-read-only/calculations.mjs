@@ -111,19 +111,26 @@ export function calculateReadSources(calculations,sources) {
 
 /** Present a verified two-endpoint body-weight comparison without repeating its
  * operands or changing the exact numeric result kept with the source proof. */
-export function presentBodyWeightComparison(question,answer,timeZone){
+export function presentBodyWeightComparison(question,answer,timeZone,sources=[]){
  const asksChange=/\b(?:weight changed|change in weight|weight difference|difference in weight)\b/i.test(question);
  const asksValues=/^\s*how much did\b[^?]{0,80}\bweigh\b/i.test(question)
   &&/\b(?:start and end|beginning and end|between|versus|vs)\b/i.test(question);
- if((!asksChange&&!asksValues)||answer.replyType!=="answer"||!answer.calculations?.length
+ if((!asksChange&&!asksValues)||answer.replyType!=="answer"
   ||answer.taskCompletion?.some(task=>task.status!=="complete")
   ||/\b(?:why|what caused|why did|should|medication|is it safe)\b/i.test(question))return null;
- const change=answer.calculations.find(calc=>calc.operation==="difference");
+ let calculations=answer.calculations??[];
+ if(asksValues&&!calculations.length){
+  const selected=sources.filter(source=>source.kind==="history"&&answer.sources.includes(source.handle));
+  const weights=selected.map(source=>(source.measurements??[]).filter(value=>value.metric==="body_weight"));
+  if(selected.length!==2||weights.some(items=>items.length!==1))return null;
+  calculations=calculateReadSources([{operation:"difference",operands:weights.map(items=>items[0].handle)}],selected);
+ }
+ const change=calculations.find(calc=>calc.operation==="difference");
  if(!change||change.metric!=="body_weight"||change.available===false||change.endpoints?.length!==2
   ||!Number.isFinite(change.value))return null;
  const [first,last]=change.endpoints;
  if(!first.petName||first.petId!==last.petId||first.source===last.source
-  ||answer.calculations.some(calc=>!["difference","percent_change"].includes(calc.operation)
+  ||calculations.some(calc=>!["difference","percent_change"].includes(calc.operation)
    ||calc.sourceHandles.join()!==change.sourceHandles.join()||calc.timeBasis!==change.timeBasis))return null;
  const date=new Intl.DateTimeFormat("en-US",{timeZone,year:"numeric",month:"long",day:"numeric"});
  const weight=value=>String(Number(value.toPrecision(12)))+" "+change.unit;

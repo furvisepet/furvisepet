@@ -301,6 +301,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
  let removedCalendar=false;
  let text=!policy?.active&&answer.validatedParts?answer.validatedParts.filter(p=>assigned.has(p.index)&&!blocked.has(p.index)&&!calculationParts.has(p.index)).map(p=>{
   if(!collectionParts.has(p.index))return p.text;
+  if(/^\s*(?:source|sources):?\s+saved notes?\s+\d+\.?\s*$/i.test(p.text))return "";
   if(/I can read saved information, but|I can help with that|Which pet|couldn.t verify|could not reliably complete/i.test(p.text)||containsUnverifiedStateClaim(p.text))return "";
   const safe=undatedCollectionSynthesis(p.text);removedCalendar||=safe!==p.text.trim();return safe;
  }).filter(Boolean).join("\n\n"):answer.answer,verifiedBriefText=null;
