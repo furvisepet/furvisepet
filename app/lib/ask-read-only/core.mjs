@@ -543,6 +543,9 @@ export async function runReadOnlyAsk(input,deps) {
    if(/\b(?:breed|what kind of (?:cat|dog|rabbit|bird))\b/i.test(q)
      &&!/\b(?:age|weight|diet|food|species|sex|how old|why)\b/i.test(q)&&typeof profile?.breed==="string"&&profile.breed.trim())
     fact=source.petName+"’s breed is "+profile.breed+".";
+   if(/\b(?:what|which) (?:food|diet)\b/i.test(q)&&/\b(?:listed|profile)\b/i.test(q)
+     &&!/\b(?:age|weight|breed|species|sex|why)\b/i.test(q)&&typeof profile?.current_food==="string"&&profile.current_food.trim())
+    fact=source.petName+"’s listed food is "+profile.current_food.trim().replace(/\.$/,"")+".";
   }
   if(fact){
    const answer=validateReadOnlyAnswer({components:[{kind:"saved",text:fact,sources:[source.handle]}],sources:[source.handle],

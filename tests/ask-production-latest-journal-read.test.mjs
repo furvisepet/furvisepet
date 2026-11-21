@@ -224,7 +224,7 @@ test("a directly verified journal topic can be answered with a partial discovery
  const result=await runReadOnlyAsk(input("What did I write about Piper getting restless after thunderstorms?",{pets:[cat]}),{
   provider:async(_request,phase)=>{
    assert.equal(phase,"read_selection");
-   return {calls:[],text:"Which saved result?",taskPlan:[plan({kind:"clarification"})],
+   return {calls:[],text:"Which saved result?",taskPlan:[plan({kind:"clarification"}),plan({id:"t2",kind:"general_guidance"})],
     safety:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]}};
   },
   read:async request=>{
@@ -241,4 +241,21 @@ test("a directly verified journal topic can be answered with a partial discovery
  const {response,limited}=buildReadOnlyPublication(result,ownerId,"Piper");
  assert.equal(limited,false);
  assert.ok(!response.sections.some(section=>section.heading==="What I checked"));
+});
+
+test("a named current profile food answer cannot leak a provider-generated source identifier",async()=>{
+ const cat={...pet,name:"Piper"};
+ const row={...note,kind:"profile",body:JSON.stringify({current_food:"Lamb adult wet food"})};
+ const result=await runReadOnlyAsk(input("What food do I have listed for Piper right now?",{pets:[cat]}),{
+  provider:async(_request,phase)=>{
+   assert.equal(phase,"read_selection");
+   return {calls:[],text:"",taskPlan:[plan({kind:"clarification",pets:["p1"]})],
+     safety:{careContext:"none",medicationIntent:"none",referent:"clear",missingContext:[],eventAssessments:[]}};
+  },
+  read:async request=>{
+   assert.equal(request.kind,"profile");
+   return {sources:[row],total:1,hasMore:false,scopeExhausted:true};
+  }
+ });
+ assert.equal(result.answer.answer,"Piper’s listed food is Lamb adult wet food.");
 });
