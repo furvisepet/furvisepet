@@ -259,3 +259,29 @@ test("a named current profile food answer cannot leak a provider-generated sourc
  });
  assert.equal(result.answer.answer,"Piper’s listed food is Lamb adult wet food.");
 });
+
+test("explicit historical weight change uses one verified endpoint per requested period",async()=>{
+ const cat={...pet,name:"Piper"};
+ const notes=[
+  {...note,body:"Piper weighed 5.1 kg.",eventAt:"2025-02-15T12:00:00Z"},
+  {...note,id:"later-note",body:"Piper weighed 5.4 kg.",eventAt:"2026-01-10T12:00:00Z"}
+ ];
+ const requests=[];
+ const result=await runReadOnlyAsk(input("Has Piper's weight changed between the February 2025 note and January 2026 check?",{pets:[cat]}),{
+  provider:async(_request,phase)=>{
+   assert.equal(phase,"read_selection");
+   return {calls:[],text:"Which record?",taskPlan:[plan({kind:"calculation",missing:["which_record"]})],
+    safety:{careContext:"none",medicationIntent:"none",referent:"essential_unknown",missingContext:["date"],eventAssessments:[]}};
+  },
+  read:async request=>{
+   requests.push(request);
+   return {sources:[notes[request.from.startsWith("2025")?0:1]],total:1,hasMore:false,scopeExhausted:true};
+  }
+ });
+ assert.deepEqual(requests.map(request=>[request.from,request.to]),[
+  ["2025-02-01","2025-02-28"],["2026-01-01","2026-01-31"]
+ ]);
+ assert.match(result.answer.answer,/increased by 0.3 kg/);
+ assert.match(result.answer.answer,/5.1 kg on February 15, 2025 and 5.4 kg on January 10, 2026/);
+ assert.equal(result.answer.replyType,"answer");
+});

@@ -124,10 +124,11 @@ export function recoverExplicitHistoryComparison(first,context,pets){
  if(named.length!==1||!first.taskPlan?.length||first.calls.length>4)return null;
  if(/\bevent\b/i.test(question)&&/\b(?:save|saved|record|recorded)\s+dates?\b/i.test(question))return null;
  const safety=first.safety;
- if(safety?.careContext!=="none"||safety.medicationIntent!=="none"
-  ||safety.currentEvents?.length||safety.conditionalEvents?.length||safety.eventAssessments?.length
+ if(!["none","clinical_history"].includes(safety?.careContext)||safety.medicationIntent!=="none"
+  ||safety.currentEvents?.length||safety.conditionalEvents?.length
+  ||safety.eventAssessments?.some(event=>event.occurrence!=="historical")
   ||safety.missingContext?.some(key=>!["pet","date","year","date_meaning","which_record"].includes(key)))return null;
- if(!first.taskPlan.every(t=>["saved_content","general_guidance","clarification","workflow"].includes(t.kind)
+ if(!first.taskPlan.every(t=>["saved_content","general_guidance","clarification","workflow","calculation"].includes(t.kind)
   &&!t.reference&&!t.needsOwnerFacts&&t.pets.every(handle=>handle===named[0].handle)))return null;
  if(first.calls.some(call=>{
   if(!["search_saved_records","read_pet_profile"].includes(call.name))return true;

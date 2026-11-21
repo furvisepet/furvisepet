@@ -357,7 +357,8 @@ export async function runReadOnlyAsk(input,deps) {
  }
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
  const weightPeriod=recoverWeightPeriodEndpoints(first,context,pets);
- const recovered=weightPeriod??recoverExplicitHistoryComparison(first,context,pets)??recoverBoundedCalendarRead(first,context,pets);
+ const historyComparison=weightPeriod?null:recoverExplicitHistoryComparison(first,context,pets);
+ const recovered=weightPeriod??historyComparison??recoverBoundedCalendarRead(first,context,pets);
  if(recovered){first=recovered.first;taskPlan=first.taskPlan;context.taskPlan=taskPlan;assessment=validateClinicalAssessment(first.safety);deps.onAnswerBoundary?.({outcome:"calendar_scope_recovered",...recovered.diagnostic});}
  // No medical lexicon in the executor: carry the structured first-pass meaning.
  // Do not let optional records delay a current emergency, or history guess an
@@ -556,8 +557,12 @@ export async function runReadOnlyAsk(input,deps) {
     coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length})),requestedPetContext:false,queryShape:plainLatest?"latest_saved_note":"other"});
   }
  }
- if(weightPeriod&&!emergency&&bound.length===2&&sources.length===2&&results.every(result=>!result.unmet.length)){
-  const draft={replyType:"answer",sources:sources.map(source=>source.handle),calculations:[]};
+ if((weightPeriod||historyComparison)&&!emergency&&bound.length===2&&sources.length===2
+  &&results.every(result=>!result.unmet.length&&result.sources.length===1)){
+  const readings=sources.map(source=>source.measurements.filter(value=>value.metric==="body_weight"));
+  const calculations=historyComparison&&readings.every(values=>values.length===1)
+   ?calculateReadSources([{operation:"difference",operands:readings.map(values=>values[0].handle)}],sources):[];
+  const draft={replyType:"answer",sources:sources.map(source=>source.handle),calculations};
   const fact=presentBodyWeightComparison(context.question,draft,input.timeZone,sources);
   if(fact){
    const answer=validateReadOnlyAnswer({components:[{kind:"saved",text:fact,sources:draft.sources}],sources:draft.sources,
