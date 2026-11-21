@@ -14,7 +14,7 @@ export function continuationRange(request){
 }
 /** References are navigation hints, not saved facts or capabilities. They are
  * re-bound to today's authorized pets and every use requires a new data read. */
-export function restoreReadReferences(value,pets) {
+export function restoreReadReferences(value,pets,fromPreviousAnswer=true) {
  if(!value||value.version!==1||!Array.isArray(value.entries)||value.entries.length>4)return [];
  const restored=[];
  for(const entry of value.entries){
@@ -26,7 +26,7 @@ export function restoreReadReferences(value,pets) {
   if(!["event","recorded"].includes(entry.orderBy)||!["asc","desc"].includes(entry.order)||!EVIDENCE_GOALS.includes(entry.goal))continue;
   if(!Array.isArray(entry.terms)||entry.terms.length>3||entry.terms.some(term=>!text(term,160)))continue;
   if(!Array.isArray(entry.sources)||!entry.sources.length||entry.sources.length>8||entry.sources.some(source=>!source||!text(source.id,128)||!/^([a-f0-9]{64})$/.test(source.hash)||!Number.isFinite(Date.parse(source.eventAt))||!Number.isFinite(Date.parse(source.recordedAt))))continue;
-  restored.push({handle:"r"+(restored.length+1),request:{kind:entry.kind,pet,from:entry.from,to:entry.to,recordedFrom:entry.recordedFrom,recordedTo:entry.recordedTo,orderBy:entry.orderBy,order:entry.order,goal:entry.goal,terms:[...entry.terms],offset:0,sourceIds:entry.sources.map(source=>source.id),referenceTimeZone:entry.timeZone,referenceLimited:entry.limited===true,omittedRange:continuationRange(entry),discoveryIncomplete:entry.discoveryIncomplete===true,omittedEventRange:entry.omittedEventRange&&typeof entry.omittedEventRange.from==="string"&&typeof entry.omittedEventRange.to==="string"&&date(entry.omittedEventRange.from)&&date(entry.omittedEventRange.to)&&entry.omittedEventRange.from<=entry.omittedEventRange.to?{from:entry.omittedEventRange.from,to:entry.omittedEventRange.to}:null,expectedSources:entry.sources.map(source=>({id:source.id,hash:source.hash,eventAt:source.eventAt,recordedAt:source.recordedAt}))}});
+  restored.push({handle:"r"+(restored.length+1),usedInPreviousAnswer:fromPreviousAnswer&&entry.usedInPreviousAnswer===true,request:{kind:entry.kind,pet,from:entry.from,to:entry.to,recordedFrom:entry.recordedFrom,recordedTo:entry.recordedTo,orderBy:entry.orderBy,order:entry.order,goal:entry.goal,terms:[...entry.terms],offset:0,sourceIds:entry.sources.map(source=>source.id),referenceTimeZone:entry.timeZone,referenceLimited:entry.limited===true,omittedRange:continuationRange(entry),discoveryIncomplete:entry.discoveryIncomplete===true,omittedEventRange:entry.omittedEventRange&&typeof entry.omittedEventRange.from==="string"&&typeof entry.omittedEventRange.to==="string"&&date(entry.omittedEventRange.from)&&date(entry.omittedEventRange.to)&&entry.omittedEventRange.from<=entry.omittedEventRange.to?{from:entry.omittedEventRange.from,to:entry.omittedEventRange.to}:null,expectedSources:entry.sources.map(source=>({id:source.id,hash:source.hash,eventAt:source.eventAt,recordedAt:source.recordedAt}))}});
  }
  return restored;
 }
@@ -46,15 +46,15 @@ export function carryReadReferences(previous,bound,sources,answer,timeZone) {
   const retained=[...selected].sort((a,b)=>{
    const rank=s=>{const i=priority.indexOf(s.handle);return i<0?priority.length:i;};return rank(a)-rank(b);
   });
-  entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal??"relevant_records",from:request.from??null,to:request.to??null,
+  entries.push({usedInPreviousAnswer:true,kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal??"relevant_records",from:request.from??null,to:request.to??null,
    recordedFrom:request.recordedFrom??null,recordedTo:request.recordedTo??null,orderBy:request.orderBy??"event",order:request.order??"desc",terms:request.terms??[],omittedRange:completed?null:call.omittedRange??null,discoveryIncomplete:call.queryScopeExhausted===false,omittedEventRange:completed?null:call.omittedEventRange??request.omittedEventRange??null,limited:selected.length>8||request.referenceLimited===true,sources:retained.slice(0,8).map(fingerprint)});
  }
  // General turns carry the bounded state forward without adding another query.
- for(const prior of previous){const {request}=prior;const completed=bound.some(c=>c.request.continuation?.reference===prior.handle&&c.continuationValidated&&c.queryScopeExhausted&&!c.omittedRange);entries.push({kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal,from:request.from,to:request.to,
+ for(const prior of previous){const {request}=prior;const completed=bound.some(c=>c.request.continuation?.reference===prior.handle&&c.continuationValidated&&c.queryScopeExhausted&&!c.omittedRange);entries.push({usedInPreviousAnswer:false,kind:request.kind,petId:request.pet.id,timeZone:request.referenceTimeZone??timeZone,goal:request.goal,from:request.from,to:request.to,
   recordedFrom:request.recordedFrom,recordedTo:request.recordedTo,orderBy:request.orderBy,order:request.order,terms:request.terms,omittedRange:completed?null:continuationRange(request),discoveryIncomplete:request.discoveryIncomplete===true,omittedEventRange:completed?null:request.omittedEventRange??null,limited:request.referenceLimited===true,sources:request.expectedSources});}
  const unique=[];
  for(const entry of entries){
-  if(!unique.some(other=>JSON.stringify({...other,terms:[]})===JSON.stringify({...entry,terms:[]})))unique.push(entry);
+  if(!unique.some(other=>JSON.stringify({...other,terms:[],usedInPreviousAnswer:false})===JSON.stringify({...entry,terms:[],usedInPreviousAnswer:false})))unique.push(entry);
   if(unique.length===4)break;
  }
  return {version:1,entries:unique};

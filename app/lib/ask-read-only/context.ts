@@ -33,9 +33,10 @@ export async function loadReadOnlyContext(db:SupabaseClient,ownerId:string,petId
  if(!rows.some(row=>row.id===currentMessageId&&row.role==="user"&&row.user_text===question))throw new Error("ASK_READ_SOURCE_NOT_AUTHORIZED");
  // Persisted public replies use the canonical "furvise" role. Keep legacy
  // assistant rows readable; user/unknown rows cannot supply reference state.
+ const latestAssistant=rows.find(row=>row.role==="furvise"||row.role==="assistant");
  const previous=rows.find(row=>(row.role==="furvise"||row.role==="assistant")&&row.response_data&&typeof row.response_data==="object"&&Object.hasOwn(row.response_data,"readOnlyReferences"));
  const readReferences=previous?(previous.response_data as Record<string,unknown>).readOnlyReferences:null;
- return {readReferences,dialogueMayBeIncomplete:rows.length>=13,pets:owned.map(p=>({id:p.id,ownerId:p.user_id,name:p.name,species:p.species})),dialogue:rows.filter(row=>row.id!==currentMessageId).reverse().map(row=>({
+ return {readReferences,referencesFromPreviousAnswer:previous?.id===latestAssistant?.id,dialogueMayBeIncomplete:rows.length>=13,pets:owned.map(p=>({id:p.id,ownerId:p.user_id,name:p.name,species:p.species})),dialogue:rows.filter(row=>row.id!==currentMessageId).reverse().map(row=>({
   role:row.role==="user"?"user":"assistant",text:row.role==="user"?row.user_text??"":previousAssistantText(row.response_data)
  }))};
 }
