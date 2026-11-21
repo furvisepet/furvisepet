@@ -114,8 +114,9 @@ export function clarifyUnboundHistoryPronoun(first,context,pets){
  * read-only owner-scoped retrieval plan, not a factual answer. */
 export function recoverExplicitHistoryComparison(first,context,pets){
  const question=String(context.question??""),scopes=explicitCalendarScopes(question);
- if((scopes.length<2||scopes.length>4)||!/(?<![\p{L}\p{N}])(?:notes?|entries|records?|history|journal|timeline)(?![\p{L}\p{N}])/iu.test(question)
-  ||!/\b(?:compare|differ|versus|vs|between|each|both|timeline)\b/i.test(question)
+ const recordContent=/\b(?:notes?|entries|records?|history|journal|timeline|measured|measurements?|readings?)\b/i.test(question);
+ const comparison=/\b(?:compare|differ|versus|vs|between|each|both|timeline|side[ -]by[ -]side)\b/i.test(question);
+ if(scopes.length<2||scopes.length>4||!recordContent||!comparison
   ||/\b(?:delete|remove|edit|update|add|write|create|correct)\b/i.test(question)
   ||/\b(?:save|record)\s+(?:a|an|the|this|it|my)\b/i.test(question)
   ||/\b(?:how (?:do|can) I|how to|where (?:do|can) I|steps? to)\b/i.test(question))return null;
@@ -126,7 +127,8 @@ export function recoverExplicitHistoryComparison(first,context,pets){
  if(safety?.careContext!=="none"||safety.medicationIntent!=="none"
   ||safety.currentEvents?.length||safety.conditionalEvents?.length||safety.eventAssessments?.length
   ||safety.missingContext?.some(key=>!["pet","date","year","date_meaning","which_record"].includes(key)))return null;
- if(!first.taskPlan.every(t=>["saved_content","general_guidance","clarification","workflow"].includes(t.kind)))return null;
+ if(!first.taskPlan.every(t=>["saved_content","general_guidance","clarification","workflow"].includes(t.kind)
+  &&!t.reference&&!t.needsOwnerFacts&&t.pets.every(handle=>handle===named[0].handle)))return null;
  if(first.calls.some(call=>{
   if(!["search_saved_records","read_pet_profile"].includes(call.name))return true;
   try{return JSON.parse(call.arguments).pet!==named[0].handle;}catch{return true;}

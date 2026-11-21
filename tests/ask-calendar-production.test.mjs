@@ -613,3 +613,18 @@ test("a three-period timeline recovers every owned window independently",()=>{
   ["p1","2012-01-01","2012-12-31"],["p1","2017-01-01","2017-12-31"],["p1","2023-01-01","2023-12-31"]
  ]);
 });
+
+test("side-by-side measured observations bind two independent months on one owned pet",()=>{
+ const pets=[{handle:"p1",name:"Luna"},{handle:"p2",name:"Maple"}];
+ const selection={calls:[],text:"Which pet?",
+  taskPlan:[{id:"t1",kind:"clarification",needsOwnerFacts:false,needsHistory:false,recordMode:"none",pets:[],reference:null,missing:["pet"]}],
+  safety:{medicationIntent:"none",careContext:"none",referent:"essential_unknown",missingContext:["pet"],eventAssessments:[]}};
+ const question="Put Luna’s measured temperature from March and October 2023 side by side.";
+ const recovered=recoverExplicitHistoryComparison(selection,{question},pets);
+ assert.deepEqual(recovered.first.calls.map(call=>{
+  const {pet,from,to}=JSON.parse(call.arguments);
+  return {pet,from,to};
+ }),[{pet:"p1",from:"2023-03-01",to:"2023-03-31"},{pet:"p1",from:"2023-10-01",to:"2023-10-31"}]);
+ assert.deepEqual(recovered.first.taskPlan[0].missing,[]);
+ assert.equal(recoverExplicitHistoryComparison({...selection,taskPlan:[{...selection.taskPlan[0],reference:"r1"}]},{question},pets),null);
+});
