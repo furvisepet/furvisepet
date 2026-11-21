@@ -191,3 +191,28 @@ test("a simple latest-note reply uses the verified row without a generated sourc
  assert.match(result.answer.answer,/regular food and restful sleep/);
  assert.equal(result.answer.taskCompletion[0].status,"complete");
 });
+
+test("start and end of a single year read the first and last recorded weights",async()=>{
+ const cat={...pet,name:"Piper"};
+ const notes=[
+  {...note,body:"Piper weighed 5.1 kg.",eventAt:"2026-01-10T12:00:00Z"},
+  {...note,id:"later-note",body:"Piper weighed 5.4 kg.",eventAt:"2026-12-14T12:00:00Z"}
+ ];
+ const requests=[];
+ const result=await runReadOnlyAsk(input("How much did Piper weigh at the start and end of 2026?",{pets:[cat]}),{
+  provider:async(_request,phase)=>{
+   assert.equal(phase,"read_selection");
+   return {calls:[],text:"Which year?",taskPlan:[plan({kind:"clarification",missing:["year","pet"]})],
+    safety:{careContext:"none",medicationIntent:"none",referent:"essential_unknown",missingContext:["date","pet"],eventAssessments:[]}};
+  },
+  read:async request=>{
+   requests.push(request);
+   return {sources:[notes[request.order==="asc"?0:1]],total:null,hasMore:false,scopeExhausted:true};
+  }
+ });
+ assert.deepEqual(requests.map(request=>[request.from,request.to,request.order]),[
+  ["2026-01-01","2026-12-31","asc"],["2026-01-01","2026-12-31","desc"]
+ ]);
+ assert.match(result.answer.answer,/5.1 kg on January 10, 2026 and 5.4 kg on December 14, 2026/);
+ assert.equal(result.answer.replyType,"answer");
+});

@@ -311,7 +311,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
   const uniqueFacts=[...new Map(selectedDatedFacts.map(f=>[f.source,f])).values()];
   // If the main statement was removed by the date guard, a lone "also"
   // sentence is only a supplement. Lead with the verified excerpt instead.
-  const supplementOnly=removedCalendar&&/^(?:it|the (?:same )?(?:note|record|entry)) also (?:says|notes|mentions|records)\b[^.!?]*[.!?]?$/i.test(text.trim());
+  const supplementOnly=/^(?:it|the (?:same )?(?:saved )?(?:note|record|entry)) also (?:says|notes|mentions|records)\b[^.!?]*[.!?]?$/i.test(text.trim());
   const sourceOnly=(!text.trim()||supplementOnly)&&tasks.length===collectionTasks.length&&collectionTasks.length>0
    &&tasks.every(t=>t.status==="complete"&&!t.missing.length)
    &&uniqueFacts.length===selectedDatedFacts.length&&uniqueFacts.length<=2

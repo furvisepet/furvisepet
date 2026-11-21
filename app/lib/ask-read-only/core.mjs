@@ -2,7 +2,7 @@ import { COMPONENT_INSTRUCTIONS, componentSelectionSchema, componentAnswerSchema
 import { CLINICAL_INSTRUCTIONS, clinicalSelectionSchema, validateClinicalAssessment, clinicalAnswerSchema, reviewClinicalAnswer, renderMedicationDecision, ownerStatementCatalog, emergencyHandoffForAssessment } from "./clinical-policy.mjs";
 import { APP_CAPABILITIES, WORKFLOW_INSTRUCTIONS, renderAppWorkflow, supportsAppWorkflow, containsAppControlSteps } from "./app-capabilities.mjs";
 import { normalizeReadTemporalScope } from "./temporal-scope.mjs";
-import { explicitCalendarScopes, explicitRequestedTimeBasis, recoverBoundedCalendarRead,recoverExplicitHistoryComparison,clarifyUnboundHistoryPronoun,namedPetsForHistory } from "./calendar-scope.mjs";
+import { explicitCalendarScopes, explicitRequestedTimeBasis, recoverBoundedCalendarRead,recoverExplicitHistoryComparison,recoverWeightPeriodEndpoints,clarifyUnboundHistoryPronoun,namedPetsForHistory } from "./calendar-scope.mjs";
 import { restoreReadReferences, describeReadReferences, carryReadReferences, continuationRange } from "./references.mjs";
 import { EVIDENCE_GOALS, HISTORY_PAGE_BUDGET, HISTORY_CANDIDATE_BUDGET, allocateEvidence } from "./retrieval.mjs";
 import { recoverOwnerHistoryIntent, historyOnlyInferenceQuestion } from "./owner-history-intent.mjs";
@@ -356,7 +356,8 @@ export async function runReadOnlyAsk(input,deps) {
   deps.onAnswerBoundary?.({outcome:"explicit_date_axis_reconciled",timeBasis:explicitBasis});
  }
  let assessment=Object.hasOwn(first,"safety")?validateClinicalAssessment(first.safety):null;
- const recovered=recoverExplicitHistoryComparison(first,context,pets)??recoverBoundedCalendarRead(first,context,pets);
+ const weightPeriod=recoverWeightPeriodEndpoints(first,context,pets);
+ const recovered=weightPeriod??recoverExplicitHistoryComparison(first,context,pets)??recoverBoundedCalendarRead(first,context,pets);
  if(recovered){first=recovered.first;taskPlan=first.taskPlan;context.taskPlan=taskPlan;assessment=validateClinicalAssessment(first.safety);deps.onAnswerBoundary?.({outcome:"calendar_scope_recovered",...recovered.diagnostic});}
  // No medical lexicon in the executor: carry the structured first-pass meaning.
  // Do not let optional records delay a current emergency, or history guess an
@@ -382,7 +383,8 @@ export async function runReadOnlyAsk(input,deps) {
    const original=bindReadTool(call.name,args,pets,references);
    const temporal=normalizeReadTemporalScope(call.name,args,first.historyIntent?.timeBasis);
    if(temporal.removedAxis)deps.onAnswerBoundary?.({outcome:"temporal_scope_normalized",timeBasis:first.historyIntent.timeBasis,removedAxis:temporal.removedAxis});
-   candidates.push({id:call.id,name:call.name,reference:args.reference??null,request:temporal.removedAxis?bindReadTool(call.name,temporal.args,pets,references):original});
+   const request=temporal.removedAxis?bindReadTool(call.name,temporal.args,pets,references):original;
+   candidates.push({id:call.id,name:call.name,reference:args.reference??null,request:weightPeriod?{...request,latestBodyWeight:true}:request});
   }
   if(selectedPetContextRequired&&!emergency){
    const required=[
@@ -465,7 +467,7 @@ export async function runReadOnlyAsk(input,deps) {
   if(previous&&["ownerId","petId","body","eventAt","recordedAt"].some(key=>previous[key]!==row[key]))fail("ASK_READ_SOURCE_CHANGED");
   known.set(key,row);
  }
- // A newest-first unfiltered prefix establishes a measurement endpoint
+ // An ordered unfiltered prefix establishes a measurement endpoint
  // only after finding an actual body-weight value. A scheduled weigh-in
  // without a measurement does not qualify.
  for(const [index,call] of bound.entries()){
@@ -549,6 +551,17 @@ export async function runReadOnlyAsk(input,deps) {
    if(taskPlan?.length)answer.taskCompletion=taskPlan.map(task=>({id:task.id,kind:task.kind,status:"complete",reason:"none",sourceCount:1}));
    return sealReadOnlyResult({answer,readReferences:preserveReferences(answer),sources,providerCallCount:calls,dialogueCoverage,
     coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length})),requestedPetContext:false,queryShape:plainLatest?"latest_saved_note":"other"});
+  }
+ }
+ if(weightPeriod&&!emergency&&bound.length===2&&sources.length===2&&results.every(result=>!result.unmet.length)){
+  const draft={replyType:"answer",sources:sources.map(source=>source.handle),calculations:[]};
+  const fact=presentBodyWeightComparison(context.question,draft,input.timeZone,sources);
+  if(fact){
+   const answer=validateReadOnlyAnswer({components:[{kind:"saved",text:fact,sources:draft.sources}],sources:draft.sources,
+    quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}},sources,context.question);
+   answer.taskCompletion=taskPlan.map(task=>({id:task.id,kind:task.kind,status:"complete",reason:"none",sourceCount:2}));
+   return sealReadOnlyResult({answer,readReferences:preserveReferences(answer),sources,providerCallCount:calls,dialogueCoverage,
+    coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length})),requestedPetContext:false,queryShape:"other"});
   }
  }
  const discovery=resolveRecordDiscovery(taskPlan,bound,results);

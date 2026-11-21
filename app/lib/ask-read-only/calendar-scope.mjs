@@ -171,13 +171,22 @@ export function recoverBoundedCalendarRead(first,context,pets){
   &&t.missing.every(k=>["pet","which_record","year","date_meaning"].includes(k)))
   &&safe&&first.calls.length<=4&&first.calls.every(call=>["search_saved_records","read_pet_profile"].includes(call.name)
    &&(()=>{try{return JSON.parse(call.arguments).pet===named[0].handle;}catch{return false;}})());
+ const ordinaryDatedRead=!taskBound&&scopes.length===1&&scopes[0].precision!=="interval"&&safe&&first.taskPlan?.length
+  &&/^\s*(?:what|which|when|was|were|did|where|how much)\b/i.test(context.question)
+  &&!/\b(?:and (?:what|when|how|why|should|did)|compare|diagnose|should|why|all|every|each|count|how many|summarize)\b/i.test(context.question)
+  &&first.taskPlan.every(task=>["saved_content","general_guidance","clarification"].includes(task.kind)
+   &&!task.reference&&!task.needsOwnerFacts&&task.pets.every(handle=>handle===named[0].handle))
+  &&first.calls.every(call=>{
+   if(!["search_saved_records","read_pet_profile"].includes(call.name))return false;
+   try{return JSON.parse(call.arguments)?.pet===named[0].handle;}catch{return false;}
+  });
  const basis=requestedHistoryTimeBasis(context.question);
  if((first.safety.missingContext.includes("date_meaning")||tasks?.some(t=>t.missing.includes("date_meaning")))
   &&bothAxes)return null;
  const legacy=first.calls.length<=1&&scopes.length===1&&first.historyIntent?.requested===true&&first.safety?.referent==="essential_unknown"
   &&first.safety.missingContext.length>0&&first.safety.missingContext.every(k=>["pet","date"].includes(k))
   &&(first.historyIntent.pet===null||first.historyIntent.pet===named[0].handle);
- if(!taskBound&&!legacy)return null;
+ if(!taskBound&&!legacy&&!ordinaryDatedRead)return null;
  if(first.calls.some(call=>!["search_saved_records","read_referenced_sources","read_pet_profile"].includes(call.name)))return null;
  if(first.calls.some(call=>{try{return call.name==="search_saved_records"&&JSON.parse(call.arguments).pet!==named[0].handle;}catch{return true;}}))return null;
  let planned={};try{planned=JSON.parse(first.calls[0]?.arguments??"{}");}catch{return null;}
@@ -187,10 +196,33 @@ export function recoverBoundedCalendarRead(first,context,pets){
   pet:named[0].handle,from:event?scope.from:null,to:event?scope.to:null,goal,alternatives:[],
   recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,orderBy:basis,query:null,offset:0,order
  })}));
- const taskPlan=taskBound?first.taskPlan.map(t=>t.needsHistory?{...t,pets:[named[0].handle],recordMode:scopes.length>1||scopes[0].precision==="interval"?"collection":t.recordMode,
+ const taskPlan=ordinaryDatedRead&&!legacy?[{...first.taskPlan[0],kind:"saved_content",needsHistory:true,recordMode:"single",
+  workflow:"none",pets:[named[0].handle],reference:null,missing:[]}]:taskBound?first.taskPlan.map(t=>t.needsHistory?{...t,pets:[named[0].handle],recordMode:scopes.length>1||scopes[0].precision==="interval"?"collection":t.recordMode,
   missing:t.missing.filter(k=>k!=="pet"&&k!=="year"&&k!=="date_meaning"&&(scopes.length===1&&scopes[0].precision!=="interval"||k!=="which_record"))}:t):first.taskPlan;
  return {first:{...first,text:"",taskPlan,historyIntent:{...first.historyIntent,requested:true,timeBasis:basis,pet:named[0].handle},
   safety:{...first.safety,referent:"clear",missingContext:[]},calls},
   diagnostic:{precision:scopes.map(s=>s.precision).join(","),scopeCount:scopes.length,timeBasis:basis,reason:"explicit_owned_pet_calendar_scope"}};
 
+}
+
+/** Compare the first and last actual measurements in one explicit period.
+ * A bounded pair of ordered scans preserves the distinction between note
+ * chronology and measurement availability. */
+export function recoverWeightPeriodEndpoints(first,context,pets){
+ const question=context.question;
+ const scopes=explicitCalendarScopes(question),named=namedPetsForHistory(question,pets);
+ if(scopes.length!==1||named.length!==1||!/^\s*how much did\b[^?!.]{0,80}\bweigh\b[^?!.]{0,80}\b(?:start|beginning) and (?:the )?end\b[^?!.]*\??$/i.test(question)
+  ||!first.taskPlan?.length||first.safety?.careContext!=="none"||first.safety.medicationIntent!=="none"
+  ||first.safety.currentEvents?.length||first.safety.conditionalEvents?.length||first.safety.eventAssessments?.length
+  ||!first.taskPlan.every(task=>["saved_content","clarification","general_guidance","calculation"].includes(task.kind)&&!task.reference&&!task.needsOwnerFacts))return null;
+ const pet=named[0],scope=scopes[0],basis=requestedHistoryTimeBasis(question),event=basis==="event";
+ const calls=["asc","desc"].map(order=>({id:"weight-endpoint-"+order,name:"search_saved_records",arguments:JSON.stringify({
+  pet:pet.handle,from:event?scope.from:null,to:event?scope.to:null,recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,
+  orderBy:basis,order,goal:"boundary",query:null,offset:0})}));
+ const original=first.taskPlan[0];
+ return {first:{...first,text:"",calls,historyIntent:{requested:true,timeBasis:basis,pet:pet.handle},
+  safety:{...first.safety,referent:"clear",missingContext:[]},
+  taskPlan:[{...original,kind:"saved_content",needsHistory:true,recordMode:"collection",workflow:"none",
+   pets:[pet.handle],reference:null,missing:[]}]},
+  diagnostic:{precision:scope.precision,scopeCount:1,timeBasis:basis,reason:"owned_period_weight_endpoints"}};
 }
