@@ -30,7 +30,7 @@ export default function DataPrivacyPage() {
     try {
       const response = await idempotentClientFetch(
         "/api/account/export",
-        { headers: await authorizationHeaders(), method: "POST" },
+        { credentials: "same-origin", method: "POST" },
         "account-data-export",
       );
       if (!response.ok) {
@@ -39,7 +39,8 @@ export default function DataPrivacyPage() {
         throw new Error(body?.error || "Your export could not be prepared.");
       }
       const blob = await response.blob();
-      downloadGeneratedFile(blob, `furvise-data-${new Date().toISOString().slice(0, 10)}.json`);
+      const suffix = blob.type === "application/gzip" ? ".json.gz" : ".json";
+      downloadGeneratedFile(blob, `furvise-data-${new Date().toISOString().slice(0, 10)}${suffix}`);
       setMessage("Your Furvise data export is ready.");
     } catch (exportError) {
       setError(exportError instanceof Error ? exportError.message : "Your export could not be prepared.");
@@ -59,7 +60,8 @@ export default function DataPrivacyPage() {
         "/api/account/delete",
         {
           body: JSON.stringify({ confirmation: deleteConfirmation }),
-          headers: { ...(await authorizationHeaders()), "Content-Type": "application/json" },
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
           method: "POST",
         },
         "account-delete",
@@ -130,11 +132,4 @@ export default function DataPrivacyPage() {
       )}
     </AccountSettingsShell>
   );
-}
-
-async function authorizationHeaders() {
-  const client = getBrowserSupabase();
-  const { data } = await client?.auth.getSession() || { data: { session: null } };
-  if (!data.session?.access_token) throw new Error("Sign in again to continue.");
-  return { Authorization: `Bearer ${data.session.access_token}` };
 }
