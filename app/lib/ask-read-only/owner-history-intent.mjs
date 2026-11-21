@@ -66,6 +66,19 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
  }
  if(named.length!==1||task.reference||first.calls.some((call,index)=>!["search_saved_records","read_pet_profile"].includes(call.name)
   ||args[index]?.pet!==named[0].handle))return null;
+ // A named pet plus an explicit note topic is enough to search. The
+ // request's own content words are retrieval hints, never record evidence.
+ const topic=/^\s*what did (?:i|we) (?:write|note|record|say|write down) about\s+([^?.!]{1,120})\??$/i.exec(question)?.[1];
+ if(topic&&!/\b(?:earlier answer|previous result|then|and what|and when)\b/i.test(question)){
+  const tokens=topic.match(/[\p{L}]{3,}/gu)??[];
+  const names=new Set(named[0].name.toLowerCase().match(/[\p{L}]{3,}/gu)??[]);
+  const terms=tokens.map(word=>word.toLowerCase()).filter(word=>!names.has(word)
+   &&!["the","when","what","about","after","before","during","getting","being","with","from","that","those","this","have","having","said","wrote"].includes(word));
+  if(terms.length){
+   const search={pet:named[0].handle,from:null,to:null,goal:"relevant_records",query:terms[0],alternatives:[...new Set(terms.slice(1))].slice(0,2),offset:0,orderBy:"event",order:"desc"};
+   return recovered(named[0],[{id:"owner-note-topic",name:"search_saved_records",arguments:JSON.stringify(search)}]);
+  }
+ }
  if(firstVisit.test(question)&&!explicitRequestedTimeBasis(question)
   &&!/\b(?:and (?:how|what|when)|today|currently|now)\b/i.test(question)){
   const collar=/\bfirst (collar|harness|meal|toy)\b/i.exec(question)?.[1];

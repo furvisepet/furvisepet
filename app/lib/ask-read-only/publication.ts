@@ -61,7 +61,8 @@ export function buildReadOnlyPublication(result:unknown,ownerId:string,petName:s
  }
  // These values are server-verified result fields, not model prose claiming a write.
  const dateDetails=(body.presentation?.sourceDates??[]).filter(source=>!(checkedSummary.includes(source.eventAt.slice(0,10))&&checkedSummary.includes(source.recordedAt.slice(0,10))));
- const verifiedDetails=[...dateDetails.map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+source.eventAt+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+source.recordedAt+"."),...body.calculations.map(calculation=>calculation.text)];
+ const compactDate=(value:string)=>value.slice(0,10);
+ const verifiedDetails=[...dateDetails.map(source=>(source.pet?source.pet+": ":"")+(source.kind==="profile"?"Profile updated: ":"Event date: ")+compactDate(source.eventAt)+(source.kind==="profile"?"; profile created: ":"; recorded date: ")+compactDate(source.recordedAt)+"."),...body.calculations.map(calculation=>calculation.text)];
  const taskCompletion=(body as typeof body & {taskCompletion?:Array<Record<string,unknown>>}).taskCompletion;
  let publishedTasks=stateRejected?taskCompletion?.map(task=>task.status==="complete"?{...task,status:"partial",reason:"publication_changed"}:task):taskCompletion;
  const summary=[checkedSummary,...verifiedDetails].join("\n");

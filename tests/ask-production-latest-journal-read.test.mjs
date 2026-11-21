@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {runReadOnlyAsk,requiresNamedLatestSavedNote} from "../app/lib/ask-read-only/core.mjs";
+import {discoverHistoryBatch} from "../app/lib/ask-read-only/retrieval.mjs";
 import {buildReadOnlyPublication} from "../app/lib/ask-read-only/publication.ts";
 process.env.FURVISE_RATE_LIMIT_HASH_SECRET="test-only-pet-notes-owner-scope-hmac-2026";
 const ownerId="synthetic-owner", pet={id:"synthetic-pet",ownerId,name:"Furvise QA MG Synthetic Nonclinical 20261027",species:"dog"};
@@ -41,6 +42,7 @@ test("exact production QA prompt requires one named owner-scoped recorded-latest
  assert.equal(reads[0].pet.ownerId,ownerId);
  assert.equal(reads[0].kind,"history");
  assert.equal(reads[0].goal,"boundary");
+ assert.equal(reads[0].takeFirst,true);
  assert.equal(reads[0].orderBy,"recorded");
  assert.equal(reads[0].order,"desc");
  assert.deepEqual(reads[0].terms,[]);
@@ -120,4 +122,46 @@ test("a named event-date boundary resolves record choice without a particular no
   read:async req=>{reads.push(req);return {sources:[note],total:1,hasMore:false,scopeExhausted:true};}
  });
  assert.deepEqual(reads.map(r=>[r.pet.id,r.goal,r.orderBy,r.order]),[[cat.id,"boundary","event","desc"]]);
+});
+
+test("a first-row endpoint completes without treating older rows as omitted answer evidence",async()=>{
+ const calls=[];
+ const [result]=await discoverHistoryBatch([{pet,kind:"history",goal:"boundary",orderBy:"recorded",order:"desc",takeFirst:true,terms:["appetite"]}],async(_request,page)=>{
+  calls.push(page);return {sources:[note],total:120,hasMore:true};
+ });
+ assert.equal(calls.length,1);
+ assert.equal(calls[0].limit,1);
+ assert.deepEqual(calls[0].terms,["appetite"]);
+ assert.equal(result.scopeExhausted,true);
+ assert.equal(result.hasMore,false);
+ assert.equal(result.total,null);
+});
+test("an empty topic endpoint never substitutes an unrelated row",async()=>{
+ const calls=[];
+ const [result]=await discoverHistoryBatch([{pet,kind:"history",goal:"boundary",orderBy:"recorded",order:"desc",takeFirst:true,terms:["grooming"]}],async(_request,page)=>{
+  calls.push(page);return {sources:[],total:0,hasMore:false};
+ });
+ assert.equal(calls.length,1);
+ assert.deepEqual(result.sources,[]);
+ assert.equal(result.searchRelaxed,false);
+});
+
+test("a latest weigh-in skips a newer appointment without an actual weight",async()=>{
+ const cat={...pet,name:"Piper"};
+ const actual={...note,body:"Piper weighed 5.1 kg at the checkup."};
+ const appointment={...note,id:"synthetic-note-2",body:"Scheduled a weigh-in for next week.",
+  eventAt:"2026-11-03T08:19:00Z",recordedAt:"2026-11-03T10:10:00Z"};
+ await runReadOnlyAsk(input("When was her last weigh-in and what was the weight?",{pets:[cat]}),{
+  provider:async(request,phase)=>{
+   if(phase==="read_selection")return {calls:[],text:"",taskPlan:[plan()]};
+   assert.deepEqual(request.SOURCE_CATALOG.map(row=>row.body),[actual.body]);
+   assert.equal(request.TOOL_DATA[0].hasMore,false);
+   return completed(true);
+  },
+  read:async req=>{
+   assert.equal(req.latestBodyWeight,true);
+   assert.equal(req.orderBy,"event");
+   return {sources:[appointment,actual],total:100,hasMore:true,scopeExhausted:false};
+  }
+ });
 });

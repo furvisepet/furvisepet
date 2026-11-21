@@ -117,3 +117,13 @@ test("an unbounded occurrence query has no competing recorded-time filter",()=>{
  assert.deepEqual(normalizeReadTemporalScope("search_saved_records",query,"event"),{args:query,removedAxis:null});
  assert.throws(()=>normalizeReadTemporalScope("search_saved_records",{...query,recordedFrom:"2020-01-01"},"event"),/ASK_READ_TEMPORAL_CONTRACT/);
 });
+
+test("an ordinary saved-note topic restores a search when record choice was marked missing",()=>{
+ const initial=first();
+ const output=recoverOwnerHistoryIntent(initial,context("What did I write about Luna hiding under the bed?"),pets,[]);
+ const args=JSON.parse(output.calls[0].arguments);
+ assert.equal(args.pet,"p1");
+ assert.equal(args.query,"hiding");
+ assert.equal(output.taskPlan[0].needsHistory,true);
+ assert.deepEqual(output.taskPlan[0].missing,[]);
+});
