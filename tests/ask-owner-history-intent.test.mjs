@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { reconcileNamedProfileRead } from "../app/lib/ask-read-only/core.mjs";
+import { reconcileNamedProfileRead,runReadOnlyAsk } from "../app/lib/ask-read-only/core.mjs";
 import { recoverOwnerHistoryIntent,historyOnlyInferenceQuestion } from "../app/lib/ask-read-only/owner-history-intent.mjs";
 import { carryReadReferences,restoreReadReferences } from "../app/lib/ask-read-only/references.mjs";
 import { fulfillReferenceReads } from "../app/lib/ask-read-only/task-components.mjs";
@@ -51,6 +51,8 @@ test("an immediately referenced visit rereads the exact retained owned note",()=
 
 test("past-only inference is distinguished from a current care request",()=>{
  assert.equal(historyOnlyInferenceQuestion("Based on those older reports, can we tell whether it still happens today?"),true);
+ assert.equal(historyOnlyInferenceQuestion("Based only on the older notes, can you tell whether Luna is still limping today?"),true);
+ assert.equal(historyOnlyInferenceQuestion("Luna fell today. Based only on the older notes, can you tell whether she is still limping today?"),false);
  assert.equal(historyOnlyInferenceQuestion("Do the old notes say what happened then?"),false);
  assert.equal(historyOnlyInferenceQuestion("From those old notes, can you tell what is happening now and what treatment should I use?"),false);
 });
@@ -67,4 +69,32 @@ test("retained notes lose immediate-answer status after an unrelated reply",()=>
  const stillRetained=restoreReadReferences(later,pets);
  assert.equal(stillRetained.length,1);
  assert.equal(stillRetained[0].usedInPreviousAnswer,false);
+});
+
+test("an explicit place anchor recovers an event-date search without a proposed call",()=>{
+ const initial=first();
+ initial.taskPlan[0].missing=["date_meaning"];
+ initial.safety.missingContext=["date_meaning"];
+ const out=recoverOwnerHistoryIntent(initial,context("When did Luna stay at the orchard cottage?"),pets,[]);
+ const args=JSON.parse(out.calls[0].arguments);
+ assert.equal(args.query,"orchard cottage");
+ assert.equal(args.orderBy,"event");
+ assert.deepEqual(out.taskPlan[0].missing,[]);
+});
+
+test("a history-only current inference answers the limit without reading or generating care advice",async()=>{
+ const result=await runReadOnlyAsk({ownerId:"owner",selectedPetId:"one",
+  pets:pets.map(p=>({...p,ownerId:"owner",species:"cat"})),dialogue:[],timeZone:"UTC",
+  question:"Based only on the older notes, can you tell whether Luna is still limping today?"},{
+  provider:async(_request,phase)=>{
+   assert.equal(phase,"read_selection");
+   const initial=first();
+   return {...initial,safety:{...initial.safety,careContext:"current_concern"}};
+  },
+  read:async()=>assert.fail("No records are needed to answer the evidence limitation.")
+ });
+ assert.equal(result.answer.replyType,"answer");
+ assert.equal(result.providerCallCount,1);
+ assert.match(result.answer.answer,/can’t tell you whether it’s still happening today/);
+ assert.deepEqual(result.sources,[]);
 });

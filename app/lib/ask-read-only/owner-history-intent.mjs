@@ -6,7 +6,8 @@ const firstVisit=/\b(?:first (?:got|adopted|brought)\b|(?:first |just )?(?:came|
 const singleReference=/\b(?:that|same|this) (?:saved |first )?(?:visit|appointment|checkup|note|entry|record|reading|weigh-in|event|report|measurement)\b/i;
 
 export function historyOnlyInferenceQuestion(question){
- return /\b(?:given|based on|from|using|with)\b[^?]{0,55}\b(?:old|older|past|historical|previous)\b[^?]{0,30}\b(?:records?|notes?|entries|reports?)\b/i.test(question)
+ return /^[^.!?]+\??$/.test(question.trim())
+  && /^(?:given|based (?:only )?on|from|using|with)\b[^?]{0,55}\b(?:old|older|past|historical|previous)\b[^?]{0,30}\b(?:records?|notes?|entries|reports?)\b/i.test(question)
   && /\b(?:can (?:you|we|i) (?:tell|know|confirm|say)|(?:prove|establish|confirm))\b/i.test(question)
   && /\b(?:currently|today|still|now|at present)\b/i.test(question)
   && !/\b(?:and (?:what|how|when|can|should)|should|treatment|diagnose|dose|emergency)\b/i.test(question);
@@ -53,8 +54,15 @@ export function recoverOwnerHistoryIntent(first,context,pets,references){
  }
  // A matching event search can answer when something happened. A user does
  // not need to choose between the observation date and the storage timestamp.
- if(first.calls.length&&/\bwhen\b/i.test(question)&&!explicitRequestedTimeBasis(question)
-  &&first.calls.every(call=>call.name==="search_saved_records")
+ const eventQuestion=/^\s*when\b/i.test(question)&&!explicitRequestedTimeBasis(question)
+  &&!/\b(?:before|after|between|since|as of|last|latest|earliest|first)\b/i.test(question);
+ // Use an explicit place phrase as a retrieval hint for an event-date lookup.
+ const place=eventQuestion?/^\s*when did\s+[^?!.]+?\s+(?:at|to|near|in)\s+(?:(?:the|a|an)\s+)?([\p{L}\p{N}][\p{L}\p{N} -]{2,79})\s*\??$/iu.exec(question)?.[1]?.trim():null;
+ if(place&&(task.needsHistory||first.historyIntent?.requested||task.missing.includes("date_meaning"))){
+  const args={pet:named[0].handle,from:null,to:null,goal:"relevant_records",query:place,offset:0,orderBy:"event",order:"desc"};
+  return recovered(named[0],[{id:"owner-event-date",name:"search_saved_records",arguments:JSON.stringify(args)}]);
+ }
+ if(first.calls.length&&eventQuestion&&first.calls.every(call=>call.name==="search_saved_records")
   &&args.every(call=>!call.recordedFrom&&!call.recordedTo)){
   const calls=first.calls.map((call,index)=>{
    return {...call,arguments:JSON.stringify({...args[index],orderBy:"event",recordedFrom:null,recordedTo:null})};

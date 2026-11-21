@@ -293,6 +293,12 @@ function validateReadOnlyAnswerValue(value,sources,question="") {
  return {...value,validatedParts,clinicalUrgency,presentation:{contextRequired:presentation.contextRequired,sourceDates:presentation.sourceDates.map(handle=>{const source=sources.find(row=>row.handle===handle);return {kind:source.kind,eventAt:source.eventAt,recordedAt:source.recordedAt,pet:source.petName??null};})},citationReferencesTranslated,componentValidated,limited:componentLimited||value.replyType!=="answer"||calculations.some(calculation=>calculation.available===false),quotes,sources:selected,calculations};
 }
 const reviewedResults = new WeakSet();
+function sealReadOnlyResult(result){
+ const freeze=value=>{if(value&&typeof value==="object"&&!Object.isFrozen(value)){Object.values(value).forEach(freeze);Object.freeze(value);}};
+ freeze(result);
+ reviewedResults.add(result);
+ return result;
+}
 export function isReadOnlyResult(value) { return !!value && reviewedResults.has(value); }
 export async function runReadOnlyAsk(input,deps) {
  const pets=input.pets.filter(p=>p.ownerId===input.ownerId).map((p,i)=>({...p,handle:"p"+(i+1)}));
@@ -345,6 +351,14 @@ export async function runReadOnlyAsk(input,deps) {
  // Do not let optional records delay a current emergency, or history guess an
  // essential unknown referent. Profile reads can still resolve a pet identity.
  const emergency=assessment?.currentEvents?.length>0||assessment?.scenario==="current"&&assessment.urgency==="immediate";
+ // A standalone question about what older records can establish is about
+ // evidence limits. It does not need retrieval or a personalized care answer.
+ if(!emergency&&assessment?.medicationIntent==="none"&&historyOnlyInferenceQuestion(context.question)){
+  const answer=validateReadOnlyAnswer({components:[{kind:"general",text:"The older notes can tell you what was observed at the time. They can’t tell you whether it’s still happening today.",sources:[]}],
+   sources:[],quotes:[],calculations:[],replyType:"answer",presentation:{sourceDates:[],contextRequired:false}},[],context.question);
+  return sealReadOnlyResult({answer,readReferences:carryReadReferences(references,[],[],answer,input.timeZone),
+   sources:[],providerCallCount:calls,dialogueCoverage,coverage:[],requestedPetContext:false,queryShape:"other"});
+ }
  const sources=[],results=[];let candidates=[];
  try{
   for(const call of emergency?[]:first.calls){
@@ -509,18 +523,6 @@ export async function runReadOnlyAsk(input,deps) {
    deps.onAnswerBoundary?.({outcome:"clinical_reviewed",...reviewed.summary});
   }
   answer=renderTaskCompletion(answer,completed.tasks,sources,reviewed.policy,results,context.explicitCalendarScopes,context.question);
-  // An explicitly history-only inference is answerable without asserting a
-  // current condition. Genuine present emergencies and decisions keep priority.
-  if(taskPlan?.length===1&&historyOnlyInferenceQuestion(context.question)&&assessment?.medicationIntent==="none"
-   &&!assessment.currentEvents?.length&&assessment.careContext!=="current_concern"
-   &&!reviewed.policy?.current?.length&&!reviewed.policy?.decision&&answer.taskCompletion?.length===1){
-   const task=answer.taskCompletion[0];
-   answer={...answer,answer:"The older notes can tell you what was observed at the time. They can’t tell you whether it’s still happening today.",
-    ownerReports:[],verifiedSourceText:undefined,verifiedBriefText:undefined,replyType:"answer",limited:false,
-    sources:[],quotes:[],calculations:[],presentation:{sourceDates:[],contextRequired:false},
-    taskCompletion:[{...task,kind:"general_guidance",status:"complete",reason:"none",sourceCount:0}]};
-   results.length=0;bound.length=0;
-  }
   const appendWorkflow=!!reviewed.policy?.active||bound.length>0||!!taskPlan?.some(t=>t.kind!=="workflow");
   answer=renderAppWorkflow(answer,reviewed.workflow,pets,appendWorkflow,input.question);
   if(reviewed.workflow?.intent!=="none"&&reviewed.workflow)deps.onAnswerBoundary?.({outcome:"workflow_selected",firstIntent:first.workflowIntent??"none",finalIntent:reviewed.workflow.intent,appended:appendWorkflow,readCount:bound.length});
@@ -571,6 +573,5 @@ export async function runReadOnlyAsk(input,deps) {
  const readReferences=carryReadReferences(references,bound.map((call,index)=>({...call,sourceHandles:allocation.visible[index].map(source=>source.handle),omittedEventRange:results[index].omittedEventRange,omittedRange:results[index].omittedRange,queryScopeExhausted:results[index].queryScopeExhausted,continuationValidated:results[index].continuationValidation?.valid===true})),sources,answer,input.timeZone);
   const result={answer,readReferences,sources:sources.filter(s=>answer.sources.includes(s.handle)),providerCallCount:calls,dialogueCoverage,coverage:results.map(({sources,...rest})=>({...rest,returned:sources.length})),
    requestedPetContext:selectedPetContextRequired,queryShape:/\b(?:latest|most recent)\b.{0,45}\b(?:journal|note|record)\b/i.test(input.question)?"latest_saved_note":"other"};
- const freeze=value=>{if(value&&typeof value==="object"&&!Object.isFrozen(value)){Object.values(value).forEach(freeze);Object.freeze(value);}};
- freeze(result);reviewedResults.add(result);return result;
+ return sealReadOnlyResult(result);
 }
