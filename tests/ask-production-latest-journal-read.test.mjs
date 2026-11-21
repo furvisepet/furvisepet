@@ -107,3 +107,17 @@ test("unrelated casual greeting does not touch journal",async()=>{
  });
  assert.equal(reads,0);
 });
+
+test("a named event-date boundary resolves record choice without a particular note ID",async()=>{
+ const cat={...pet,name:"Maple"};
+ const reads=[];
+ await runReadOnlyAsk(input("For Maple, which event in the journal has the newest event date?",{pets:[cat,other]}),{
+  provider:async(request,phase)=>{
+   if(phase==="read_selection")return {calls:[],text:"Which saved result?",taskPlan:[plan()]};
+   assert.deepEqual(request.context.taskPlan[0].missing,[]);
+   return completed(true);
+  },
+  read:async req=>{reads.push(req);return {sources:[note],total:1,hasMore:false,scopeExhausted:true};}
+ });
+ assert.deepEqual(reads.map(r=>[r.pet.id,r.goal,r.orderBy,r.order]),[[cat.id,"boundary","event","desc"]]);
+});

@@ -289,3 +289,20 @@ test("selected Aster greeting remains source-free with additional owned pets",as
  });
  assert.equal(reads,0);assert.equal(result.requestedPetContext,false);assert.equal(result.providerCallCount,2);
 });
+test("drafted artifacts stay in read-only Ask and explicit writes stay governed",()=>{
+  for(const text of [
+    "Create an empty monthly grooming tracker with two columns.",
+    "Could you create me a three-column feeding checklist?",
+    "Create a blank note template I can print.",
+  ]) assert.equal(isExplicitAskMutationCommand(text),false,text);
+  for(const text of [
+    "Create a care note for Luna.",
+    "Create a journal entry using a checklist.",
+    "Create a care note from this table.",
+    "Create a blank table in Luna's journal.",
+    "Create a blank record template, then save it to my journal.",
+    "Create a blank tracker to save in the pet profile.",
+    "Create a table and add it to the saved note.",
+    "Delete the tracker from my journal.",
+  ]) assert.equal(isExplicitAskMutationCommand(text),true,text);
+});

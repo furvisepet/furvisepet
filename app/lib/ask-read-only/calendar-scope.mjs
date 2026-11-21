@@ -18,13 +18,27 @@ export function explicitCalendarScopes(question){
   const date=new Date(from+"T00:00:00Z");if(!Number.isFinite(+date)||date.toISOString().slice(0,10)!==from)continue;
   found.push({from,to,precision:match[3]?"day":"month"});
  }
+ // Coordinated month lists can share a trailing year. Resolve that year
+ // only inside a contiguous list of month names.
+ const coordinated = new RegExp("\\b((?:" + aliases.map(([name])=>name).join("|") + ")(?:\\s*(?:,\\s*(?:and\\s+)?|\\s+and\\s+)(?:" + aliases.map(([name])=>name).join("|") + "))+)[ ]+((?:19|20|21)\\d{2}|2200)\\b", "g");
+ for (const match of text.matchAll(coordinated)) {
+  const year=Number(match[2]);
+  for (const token of match[1].match(/[a-z]+/g)) {
+   const month=aliases.find(([name])=>name===token)?.[1];
+   if (month===undefined) continue;
+   const prefix=year+"-"+String(month+1).padStart(2,"0")+"-";
+   found.push({from:prefix+"01",to:prefix+String(new Date(Date.UTC(year,month+1,0)).getUTCDate()),precision:"month"});
+  }
+ }
  const monthMentions=[...text.matchAll(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b/g)];
- if(monthMentions.length>found.length)return [];
+ const namedCount=[...text.matchAll(named)].length;
+ const coordinatedCount=[...text.matchAll(coordinated)].reduce((count,match)=>count+match[1].match(/[a-z]+/g).filter(token=>token!=="and").length-1,0);
+ if(monthMentions.length>namedCount+coordinatedCount)return [];
  // A year without a month is a full event/recorded calendar window. Never
  // turn a month or ISO date into an additional, broader year read.
  if(!found.length&&!monthMentions.length)for(const match of text.matchAll(/(?<![\d-])((?:19|20|21)\d{2}|2200)(?![\d-])/g))
   found.push({from:match[1]+"-01-01",to:match[1]+"-12-31",precision:"year"});
- const scopes=[...new Map(found.map(scope=>[scope.from+"/"+scope.to,scope])).values()];
+ const scopes=[...new Map(found.map(scope=>[scope.from+"/"+scope.to,scope])).values()].sort((a,b)=>a.from.localeCompare(b.from));
  // An explicit continuous year span includes the intervening years. A year
  // attached to an entry/note names an endpoint record instead.
  if(scopes.length===2&&scopes.every(scope=>scope.precision==="year")&&scopes[0].from<scopes[1].from){
@@ -100,18 +114,21 @@ export function clarifyUnboundHistoryPronoun(first,context,pets){
  * read-only owner-scoped retrieval plan, not a factual answer. */
 export function recoverExplicitHistoryComparison(first,context,pets){
  const question=String(context.question??""),scopes=explicitCalendarScopes(question);
- if(scopes.length!==2||!/(?<![\p{L}\p{N}])(?:notes?|entries|records?|history|journal)(?![\p{L}\p{N}])/iu.test(question)
-  ||!/\b(?:compare|differ|versus|vs|between|each|both)\b/i.test(question)
+ const recordContent=/\b(?:notes?|entries|records?|history|journal|timeline|measured|measurements?|readings?)\b/i.test(question);
+ const comparison=/\b(?:compare|differ|versus|vs|between|each|both|timeline|side[ -]by[ -]side)\b/i.test(question);
+ if(scopes.length<2||scopes.length>4||!recordContent||!comparison
   ||/\b(?:delete|remove|edit|update|add|write|create|correct)\b/i.test(question)
   ||/\b(?:save|record)\s+(?:a|an|the|this|it|my)\b/i.test(question)
   ||/\b(?:how (?:do|can) I|how to|where (?:do|can) I|steps? to)\b/i.test(question))return null;
  const named=namedPetsForHistory(question,pets);
  if(named.length!==1||!first.taskPlan?.length||first.calls.length>4)return null;
+ if(/\bevent\b/i.test(question)&&/\b(?:save|saved|record|recorded)\s+dates?\b/i.test(question))return null;
  const safety=first.safety;
  if(safety?.careContext!=="none"||safety.medicationIntent!=="none"
   ||safety.currentEvents?.length||safety.conditionalEvents?.length||safety.eventAssessments?.length
   ||safety.missingContext?.some(key=>!["pet","date","year","date_meaning","which_record"].includes(key)))return null;
- if(!first.taskPlan.every(t=>["saved_content","general_guidance","clarification","workflow"].includes(t.kind)))return null;
+ if(!first.taskPlan.every(t=>["saved_content","general_guidance","clarification","workflow"].includes(t.kind)
+  &&!t.reference&&!t.needsOwnerFacts&&t.pets.every(handle=>handle===named[0].handle)))return null;
  if(first.calls.some(call=>{
   if(!["search_saved_records","read_pet_profile"].includes(call.name))return true;
   try{return JSON.parse(call.arguments).pet!==named[0].handle;}catch{return true;}
@@ -127,16 +144,16 @@ export function recoverExplicitHistoryComparison(first,context,pets){
  return {first:{...first,text:"",calls,taskPlan:[task],
   historyIntent:{...first.historyIntent,requested:true,timeBasis:basis,pet:named[0].handle},
   safety:{...safety,referent:"clear",missingContext:[]}},
-  diagnostic:{precision:scopes.map(s=>s.precision).join(","),scopeCount:2,timeBasis:basis,
+  diagnostic:{precision:scopes.map(s=>s.precision).join(","),scopeCount:scopes.length,timeBasis:basis,
    reason:"explicit_owned_history_comparison"}};
 }
 export function recoverBoundedCalendarRead(first,context,pets){
- if(first.calls.length>2)return null;
+ if(first.calls.length>4)return null;
  // A question naming both axes genuinely needs the plan's explicit scope.
  const bothAxes=/\bevent\b/i.test(context.question)
   &&/\b(?:save|saved|record|recorded)\s+dates?\b/i.test(context.question);
  if(bothAxes&&!explicitRequestedTimeBasis(context.question))return null;
- const scopes=explicitCalendarScopes(context.question);if(scopes.length<1||scopes.length>2)return null;
+ const scopes=explicitCalendarScopes(context.question);if(scopes.length<1||scopes.length>4)return null;
  const named=namedPetsForHistory(context.question,pets);
  if(named.length!==1)return null;
  const safe=first.safety?.careContext==="none"&&first.safety.medicationIntent==="none"
@@ -146,7 +163,7 @@ export function recoverBoundedCalendarRead(first,context,pets){
  const taskBound=!!tasks?.length&&tasks.every(t=>t.kind==="saved_content"&&t.reference===null
   &&(t.pets.length===0&&t.missing.includes("pet")||t.pets.length===1&&t.pets[0]===named[0].handle)
   &&t.missing.every(k=>["pet","which_record","year","date_meaning"].includes(k)))
-  &&safe&&first.calls.length<=2&&first.calls.every(call=>["search_saved_records","read_pet_profile"].includes(call.name)
+  &&safe&&first.calls.length<=4&&first.calls.every(call=>["search_saved_records","read_pet_profile"].includes(call.name)
    &&(()=>{try{return JSON.parse(call.arguments).pet===named[0].handle;}catch{return false;}})());
  const basis=requestedHistoryTimeBasis(context.question);
  if((first.safety.missingContext.includes("date_meaning")||tasks?.some(t=>t.missing.includes("date_meaning")))
@@ -158,14 +175,14 @@ export function recoverBoundedCalendarRead(first,context,pets){
  if(first.calls.some(call=>!["search_saved_records","read_referenced_sources","read_pet_profile"].includes(call.name)))return null;
  if(first.calls.some(call=>{try{return call.name==="search_saved_records"&&JSON.parse(call.arguments).pet!==named[0].handle;}catch{return true;}}))return null;
  let planned={};try{planned=JSON.parse(first.calls[0]?.arguments??"{}");}catch{return null;}
- const goal=scopes[0].precision==="interval"?"complete_set":scopes.length===2?"comparison":EVIDENCE_GOALS.includes(planned.goal)?planned.goal:"relevant_records";
+ const goal=scopes[0].precision==="interval"?"complete_set":scopes.length>1?"comparison":EVIDENCE_GOALS.includes(planned.goal)?planned.goal:"relevant_records";
  const order=planned.order==="desc"?"desc":"asc",event=basis==="event";
  const calls=scopes.map((scope,index)=>({id:"calendar-read-"+index,name:"search_saved_records",arguments:JSON.stringify({
   pet:named[0].handle,from:event?scope.from:null,to:event?scope.to:null,goal,alternatives:[],
   recordedFrom:event?null:scope.from,recordedTo:event?null:scope.to,orderBy:basis,query:null,offset:0,order
  })}));
- const taskPlan=taskBound?first.taskPlan.map(t=>t.needsHistory?{...t,pets:[named[0].handle],recordMode:scopes.length===2||scopes[0].precision==="interval"?"collection":t.recordMode,
-  missing:t.missing.filter(k=>k!=="pet"&&k!=="year"&&k!=="date_meaning"&&(scopes.length!==2&&scopes[0].precision!=="interval"||k!=="which_record"))}:t):first.taskPlan;
+ const taskPlan=taskBound?first.taskPlan.map(t=>t.needsHistory?{...t,pets:[named[0].handle],recordMode:scopes.length>1||scopes[0].precision==="interval"?"collection":t.recordMode,
+  missing:t.missing.filter(k=>k!=="pet"&&k!=="year"&&k!=="date_meaning"&&(scopes.length===1&&scopes[0].precision!=="interval"||k!=="which_record"))}:t):first.taskPlan;
  return {first:{...first,text:"",taskPlan,historyIntent:{...first.historyIntent,requested:true,timeBasis:basis,pet:named[0].handle},
   safety:{...first.safety,referent:"clear",missingContext:[]},calls},
   diagnostic:{precision:scopes.map(s=>s.precision).join(","),scopeCount:scopes.length,timeBasis:basis,reason:"explicit_owned_pet_calendar_scope"}};

@@ -218,6 +218,12 @@ export function isExplicitAskMutationCommand(message: string): boolean {
   const start = new RegExp("^(?:please\\s+)?"+action+"\\b", "i");
   const request = new RegExp("^(?:can|could|would|will)\\s+you\\s+(?:please\\s+)?"+action+"\\b", "i");
   const compound = new RegExp("\\b(?:and|then)\\s+(?:please\\s+)?"+action+"\\b", "i");
-  return start.test(message.trim()) || request.test(message.trim()) || compound.test(message)
-    || /\bkeep (?:that|this|it) as (?:a )?(?:note|record)\b/i.test(message);
+  const text = message.trim();
+  if (compound.test(text) || /\bkeep (?:that|this|it) as (?:a )?(?:note|record)\b/i.test(text)) return true;
+  // A display artifact can be requested with an action verb. Its bounded
+  // object phrase supplies the distinction; a separate write still governs.
+  const draft = /^(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?create\s+(?:me\s+)?(?:an?|the)\s+(?:(?!(?:and|then|in|into|to|for|with|using|as|from|about|on)\b)[\p{L}\p{N}-]+\s+){0,7}?(?:template|table|tracker|checklist|worksheet|chart|outline|draft)\b/iu.exec(text);
+  if (draft && !/\b(?:save|store|record|persist|update|replace|append|publish)\b/i.test(text.slice(draft[0].length))
+    && !/\b(?:in|into|to|under|on)\s+(?:my|our|the|[\p{L}]+['’]s)\s+(?:(?:saved|care|pet)\s+)*(?:journal|history|profile|records?|notes?)\b/iu.test(text)) return false;
+  return start.test(text) || request.test(text);
 }

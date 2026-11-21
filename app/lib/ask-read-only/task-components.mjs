@@ -19,7 +19,7 @@ export const COMPONENT_INSTRUCTIONS=[
  "For explicit remaining/continue requests use saved_continuation and the selected reference with an omittedRange (or legacy omittedEventRange); read_remaining_records performs a fresh bounded search of that omitted range, not a snapshot cursor. It may repeat same-day boundary records. Do not use the prior eight retained source bodies as the omitted remainder. For a workflow task, workflow selects the actual screen operation; a photo into a care/history note uses care_photo_attachment, not other. For all non-workflow tasks workflow must be none.",
  "A vet_brief is an actual concise handoff: relevant owner-reported observations, dated original historical facts, and questions/unknowns. Set needsHistory when saved notes/results are requested. Set needsOwnerFacts when current/prior user observations must be included (including what I just told you), and always for owner_observations tasks. Do not mark those tasks complete without actual eligible owner facts. Select the relevant retained reference handle and authorized pets, then re-read it. A prior assistant answer or reference metadata is never source evidence. For collection integration, rehydrate the original result and relevant continuation results; bounded retained sources are a selection, never the full historical set. Do not discuss evidence completeness or source counts in free prose: the server supplies coverage. Select ownerFacts by the exact sentence handle in ownerFactSentenceRefs; do not regenerate or shorten owner wording. Classify each owner fact by meaning; pet/date corrections and requests are not health observations. A corrected pet/date overrides a prior result; plan a new scoped read instead. When the referenced result is ambiguous, ask which one rather than choosing arbitrarily.",
  "For a profile-only question, plan one profile-backed task and no extra saved-history task. For any requested saved/profile content or calculation set needsHistory=true and bind pets to all explicitly named or unambiguously established authorized subjects. A comparison/calculation may have multiple pets; keep each tool read pet/time scoped. An empty pets list is not permission to guess from the selected UI pet. A selected reference carries its own authorized pet. General guidance alone does not require saved reads. needsOwnerFacts is only for an owner_observations task or a vet_brief that must reproduce actual observations. Preferences, time constraints and plan revisions are ordinary dialogue context, not factual excerpts required before general guidance can be answered.",
- "missing identifies what is genuinely unresolved. A vague month with no established pet/year requires one pointed pet/year question; a fresh dated saved-note question may use the selected pet when no other subject is named. An explicit pet plus month/year is sufficient; do not demand a day. Clinical missing authority must not prevent an independently scoped saved-data task.",
+ "missing identifies what is genuinely unresolved. For a new search, the user can delegate choosing a record by requesting an ordered endpoint or any relevant example. Search first for both; reserve which_record for a specific prior record whose identity is actually required. For distinct requested periods, allocate one read per period within the tool limit. A vague month with no established pet/year requires one pointed pet/year question; a fresh dated saved-note question may use the selected pet when no other subject is named. An explicit pet plus month/year is sufficient; do not demand a day. Clinical missing authority must not prevent an independently scoped saved-data task.",
  "In the final completion array account for EACH task ID once. Select componentIndexes for independently answerable ordinary prose, sources for current admitted evidence, and exact factual excerpts for a vet brief. ownerFacts excerpts must be short COMPLETE verbatim sentences preserving negation, attribution and caveats; declarative observations from the selected USER statement, not their request, an assistant assertion, speculation, or a question. historyFacts excerpts must be one or more CONTIGUOUS COMPLETE sentences occurring byte-for-byte in an admitted note, preserving negation and attribution. Never generate a diagnosis or regimen directive in these excerpts; historical plans remain historical quotations. Questions for the vet come from the bounded clinical review fields. Do not put extra clinical recommendations into a summary component.",
  "Use complete only when this requested task is actually delivered. Unresolved/partial requires a specific reason. Preserve the other completed tasks. When a question asks what an old note says AND whether it establishes a current fact, answer both parts; distinguish the historical report from current evidence, and plan a current profile read if it can answer that part. Do not add a generic partial/context notice when all requested components are delivered. Do not repeat server dates or arithmetic in model prose; the server publishes them once. Source omissions limit only the affected task; never claim a complete collection when bodies are omitted."
 ].join("\n");
@@ -236,8 +236,8 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
  });
  // One or two saved-history tasks can quote one complete short original per
  // fully inspected bounded window when generated prose omitted an answer.
- const explicitComparison=requestedScopes.length===2
-   &&/\b(?:compare|differ|versus|vs|between|each|both)\b/i.test(question)
+ const explicitComparison=requestedScopes.length>=2&&requestedScopes.length<=4
+   &&/\b(?:compare|differ|versus|vs|between|each|both|timeline)\b/i.test(question)
    &&tasks.some(t=>t.kind==="saved_content"&&t.needsHistory&&t.pets?.length===1)
    &&tasks.every(t=>["saved_content","general_guidance","clarification","workflow"].includes(t.kind));
  const savedTasks=tasks.filter(t=>t.kind==="saved_content");
@@ -257,7 +257,7 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
    const requested=requestedScopes.length===0||requestedScopes.length===windows.length
      &&requestedScopes.every(scope=>windows.some(r=>r.scope.from===scope.from&&r.scope.to===scope.to
        ||r.scope.recordedFrom===scope.from&&r.scope.recordedTo===scope.to));
-   const clean=requested&&windows.length>=1&&windows.length<=2&&new Set(windows.map(r=>r.scope.pet)).size===1
+   const clean=requested&&windows.length>=1&&windows.length<=4&&new Set(windows.map(r=>r.scope.pet)).size===1
      &&new Set(rows.map(r=>r?.handle)).size===windows.length
      &&windows.every(r=>r.sources.length===1&&r.inspected===1&&r.queryScopeExhausted&&r.scopeExhausted
        &&!r.unmet?.length&&!r.hasMore&&!r.hasPrevious&&!r.truncated)
@@ -269,7 +269,10 @@ export function renderTaskCompletion(answer,tasks,sources,policy,coverage=[],req
      ||rows.length===1&&tasks.some(t=>t.includeSourceDates)&&rows.some(row=>row&&!answer.answer.includes(row.eventAt.slice(0,10)));
    if(clean&&failed){
      const quoted=row=>String.fromCharCode(0x201c)+row.body.trim()+String.fromCharCode(0x201d);
-     const facts=rows.length===2
+     const preserveRows=rows.length>2||/\b(?:lines?|bullets?|timeline)\b/i.test(question);
+     const facts=preserveRows
+       ?rows.map(row=>(/\bbullets?\b/i.test(question)?"- ":"")+row.eventAt.slice(0,10)+", "+quoted(row))
+       :rows.length===2
        ?["The earlier saved entry for "+rows[0].petName+" ("+rows[0].eventAt.slice(0,10)+") says "+quoted(rows[0])+
          " The later entry ("+rows[1].eventAt.slice(0,10)+") says "+quoted(rows[1])]
        :rows.map(row=>"The saved note for "+row.petName+" about "+row.eventAt.slice(0,10)+" says: "+quoted(row));
@@ -404,7 +407,9 @@ export function normalizeTaskRecords(plan,bound=[]){
   // record identity when several tasks share that pet.
   const soleHistoryTask=t.needsHistory&&!plan.some(other=>other!==t&&other.needsHistory&&other.pets.some(p=>t.pets.includes(p)));
   const collection=t.recordMode==="collection"||t.kind==="saved_continuation"||soleHistoryTask&&matching.some(c=>c.request.goal==="complete_set"&&!c.request.reference);
+  const selectionRule=t.reference===null&&soleHistoryTask&&matching.some(({request})=>request.kind==="history"
+   &&!request.reference&&!(request.offset>0)&&(request.goal==="boundary"||request.goal==="relevant_records"&&request.terms?.length));
   const referenced=t.reference&&matching.some(c=>c.reference===t.reference&&(c.request.reference||c.request.continuation));
-  return {...t,recordMode:collection?"collection":t.recordMode,missing:t.missing.filter(k=>k!=="which_record"||!collection&&!referenced)};
+  return {...t,recordMode:collection?"collection":t.recordMode,missing:t.missing.filter(k=>k!=="which_record"||!collection&&!referenced&&!selectionRule)};
  });
 }
